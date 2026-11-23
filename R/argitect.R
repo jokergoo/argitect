@@ -10,53 +10,66 @@
 #' additionally supports positional arguments.
 #'
 #' @param ... Argument specifications. They can be given as
-#'   \code{(specification, description)} pairs, a two-column matrix, or a
-#'   single text template. See Details.
-#' @param help_head Head of the help message shown by \code{--help}.
-#' @param help_foot Foot of the help message shown by \code{--help}.
+#'   `(specification, description)` pairs, a two-column matrix, or a single
+#'   text template. See Details.
+#' @param help_head Head of the help message shown by `--help`.
+#' @param help_foot Foot of the help message shown by `--help`.
 #' @param envir Environment where default values are looked up and parsed
 #'   values are exported. A list is also accepted and coerced to an
 #'   environment.
 #' @param argv_str A string containing command-line arguments. Only for
 #'   testing purposes.
 #' @param template_control A list controlling template help rendering, e.g.
-#'   \code{list(opt_width = 21)}.
-#' @param help_style The style of the help message: \code{"one-column"} or
-#'   \code{"two-column"}.
+#'   `list(opt_width = 21)`.
+#' @param help_style The style of the help message: `"one-column"` or
+#'   `"two-column"`.
+#' @param explain If `TRUE`, print an explanation of each argument
+#'   specification (its format and simple examples) and return without
+#'   parsing any command-line arguments.
+#' @param value_sep The separator used to split multiple values inside a
+#'   single `name=value` pair for a vector sub-argument. The default `"auto"`
+#'   detects the separator among `","`, `";"`, `":"`, `"|"` and `"/"` by
+#'   picking the one that satisfies the type and count constraints.
 #'
 #' @details
-#' Each argument specification is \code{name[|alias...]=spec}. The value part
-#' \code{spec} consists of an optional \emph{mode} (\code{i} integer,
-#' \code{f} numeric, \code{s} character, \code{l} logical, \code{o} extended
-#' integer) and an optional \emph{type} (\code{$} scalar, \code{#}
-#' positional, \code{@} vector, \code{\%} hash), optionally followed by a
-#' bracketed range or sub-argument list.
+#' Each argument specification is `name[|alias...]=spec`. The value part
+#' `spec` consists of an optional *mode* (`i` integer, `f` numeric, `s`
+#' character, `l` logical) and an optional *type* (`$`
+#' scalar, `#` positional, `@` vector, `%` hash), optionally followed by a
+#' bracketed range or sub-argument list. The `i` mode also accepts extended
+#' integer notation: `0x`/`0X` hexadecimal, `0b`/`0B` binary, `0`-prefixed
+#' octal (e.g. `0123`), and decimal.
 #'
-#' \itemize{
-#'   \item \code{"number=i"} -- a single integer scalar.
-#'   \item \code{"name=s"} -- a single character scalar.
-#'   \item \code{"length|size=i"} -- an integer scalar with two names.
-#'   \item \code{"tag=i@"} -- an integer vector.
-#'   \item \code{"tag=i{2,}"} -- an integer vector with at least two elements.
-#'   \item \code{"param=s\%"} -- name=value pairs with character values.
-#'   \item \code{"input=s#"} -- one positional argument.
-#'   \item \code{"files=s#\{\}"} -- one or more positional arguments.
-#'   \item \code{"verbose!"} -- a logical option, negatable with
-#'         \code{--no-verbose}.
-#' }
+#' - `"number=i"`: a single integer scalar.
+#' - `"name=s"`: a single character scalar.
+#' - `"length|size=i"`: an integer scalar with two names.
+#' - `"tag=i@"`: an integer vector.
+#' - `"tag=i{2,}"`: an integer vector with at least two elements.
+#' - `"param=s%"`: name=value pairs with character values.
+#' - `"input=s#"`: one positional argument.
+#' - `"files=s#{}"`: one or more positional arguments.
+#' - `"verbose!"`: a logical option, negatable with `--no-verbose`.
 #'
-#' If a variable with the first name already exists in \code{envir} (and is
-#' not a function), it is used as the default value and the option becomes
-#' optional. Logical options always default to \code{FALSE}.
+#' If a variable with the first name already exists in `envir` (and is not a
+#' function), it is used as the default value and the option becomes optional.
+#' Logical options always default to `FALSE`.
 #'
 #' @return Invisibly, a list of the parsed argument objects. Parsed values are
-#'   also exported to \code{envir} as variables named after the first
-#'   specification name.
+#'   also exported to `envir` as variables named after the first specification
+#'   name.
+#'
+#' @examples
+#' e = new.env()
+#' argitect("count=i", "Number of items.", "verbose!", "Print messages.",
+#'     envir = e, argv_str = "--count 3 --verbose")
+#' e$count
+#' e$verbose
 #'
 #' @export
 argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.frame(),
     argv_str = NULL, template_control = list(),
-    help_style = argitect.options("help_style")) {
+    help_style = argitect.options("help_style"), explain = FALSE,
+    value_sep = argitect.options("value_sep")) {
 
     if(is.list(envir)) envir = as.environment(envir)
 
@@ -72,6 +85,14 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
 
     spec_info = parse_specification(list(...))
 
+    # reserved options are rejected before building (and before any warning)
+    reserved_hit = any(vapply(spec_info$spec[, 1], function(s) {
+        any(spec_names(s) %in% DEFAULT_ARGUMENTS)
+    }, logical(1)))
+    if(reserved_hit) {
+        stop_wrap("`help` and `version` are reserved options. Please do not use them.")
+    }
+
     # build argument objects
     arguments = list()
     for(i in seq_len(nrow(spec_info$spec))) {
@@ -80,17 +101,45 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     }
     names(arguments) = vapply(arguments, function(a) a$arg_name[1], character(1))
 
-    if(any(names(arguments) %in% DEFAULT_ARGUMENTS)) {
-        stop_wrap("`help` and `version` are reserved options. Please do not use them.")
+    # argument names and aliases must be unique
+    all_names = unlist(lapply(arguments, function(a) a$arg_name), use.names = FALSE)
+    dup = unique(all_names[duplicated(all_names)])
+    if(length(dup)) {
+        stop_wrap("Duplicated argument name or alias: ", paste(dup, collapse = ", "), ".")
     }
 
     # attach sub-option descriptions (spec of the form "name$sub")
     if(length(spec_info$sub_opt)) {
         for(parent in names(spec_info$sub_opt)) {
-            if(parent %in% names(arguments)) {
-                arguments[[parent]]$sub_opt = c(arguments[[parent]]$sub_opt,
-                    spec_info$sub_opt[[parent]])
+            if(!parent %in% names(arguments)) {
+                stop_wrap("Sub-argument description(s) are given for '", parent,
+                          "', which is not an argument.")
             }
+            a = arguments[[parent]]
+            doc_names = names(spec_info$sub_opt[[parent]])
+            declared = vapply(a$spec_value$arg_sub, function(s) s$arg_name[1], character(1))
+
+            # fixed sub-argument set: documentation must match the declared names
+            if(length(declared)) {
+                extra = setdiff(doc_names, declared)
+                if(length(extra)) {
+                    stop_wrap("Sub-argument", if(length(extra) > 1) "s" else "",
+                              " ", paste0("'", extra, "'", collapse = ", "),
+                              " documented for '", parent, "' ", if(length(extra) > 1) "are" else "is",
+                              " not declared in its specification.")
+                }
+                missing = setdiff(declared, doc_names)
+                if(length(missing)) {
+                    warning_wrap("Sub-argument", if(length(missing) > 1) "s" else "",
+                                 " ", paste0("'", missing, "'", collapse = ", "),
+                                 " of '", parent, "' ",
+                                 if(length(missing) > 1) "have" else "has",
+                                 " no documented description.")
+                }
+            }
+
+            a$sub_opt = c(a$sub_opt, spec_info$sub_opt[[parent]])
+            arguments[[parent]] = a
         }
     }
 
@@ -108,6 +157,12 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     spec_info$opt_group[[length(spec_info$opt_group)]] =
         c(spec_info$opt_group[[length(spec_info$opt_group)]], n_arg - 1, n_arg)
 
+    # explain mode: only print the specification explanation, no parsing
+    if(isTRUE(explain)) {
+        print_explain_msg(arguments, file = stdout())
+        return(invisible(arguments))
+    }
+
     # parse argv
     if(is.null(argv_str)) {
         argv = commandArgs(TRUE)
@@ -120,21 +175,21 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
 
     err = NULL
     tryCatch({
-        parse_argv(arguments, argv, config = config)
+        parse_argv(arguments, argv, config = config, value_sep = value_sep)
     }, error = function(e) {
         err <<- conditionMessage(e)
     })
 
     if(!is.null(err)) {
         if(IS_UNDER_COMMAND_LINE) {
-            cat(red(paste0("Error: ", err, "\n")), file = stderr())
+            cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
             print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
                 template = spec_info$template, template_control = template_control,
                 style = help_style, opt_group = spec_info$opt_group,
                 opt_group_desc = spec_info$opt_group_desc)
             q(save = "no", status = 127)
         } else {
-            stop_wrap("Error: ", err)
+            stop_wrap(err)
         }
     }
 
@@ -146,6 +201,9 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
             opt_group_desc = spec_info$opt_group_desc)
         if(IS_UNDER_COMMAND_LINE) {
             q(save = "no", status = 0)
+        } else if(!is.null(argitect.options("__script_name__"))) {
+            # inside source_script(): stop the sourced script quietly
+            stop_script()
         } else {
             return(invisible(NULL))
         }
@@ -156,6 +214,8 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
         print_version_msg(envir, file = stdout())
         if(IS_UNDER_COMMAND_LINE) {
             q(save = "no", status = 0)
+        } else if(!is.null(argitect.options("__script_name__"))) {
+            stop_script()
         } else {
             return(invisible(NULL))
         }
@@ -171,14 +231,14 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
 
     if(!is.null(err)) {
         if(IS_UNDER_COMMAND_LINE) {
-            cat(red(paste0("Error: ", err, "\n")), file = stderr())
+            cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
             print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
                 template = spec_info$template, template_control = template_control,
                 style = help_style, opt_group = spec_info$opt_group,
                 opt_group_desc = spec_info$opt_group_desc)
             q(save = "no", status = 127)
         } else {
-            stop_wrap("Error: ", err)
+            stop_wrap(err)
         }
     }
 
@@ -188,27 +248,17 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
 }
 
 
-# == title
-# Alias of argitect(), consistent with GetOptions() in Getopt::Long
-#' Alias of \code{\link{argitect}()}
-#'
-#' This function is the same as \code{\link{argitect}}. It is provided for
-#' consistency with the \code{GetOptions()} subroutine in the Perl module
-#' \code{Getopt::Long}.
-#'
-#' @param ... Passed to \code{\link{argitect}}.
-#' @param envir Environment where default values are looked up and parsed
-#'   values are exported.
-#'
-#' @return See \code{\link{argitect}}.
-#'
-#' @export
-GetOptions = function(..., envir = parent.frame()) argitect(..., envir = envir)
-
 
 # ============================================================
 # Specification parsing
 # ============================================================
+
+# extract all argument names (first name and aliases) from a raw spec string
+spec_names = function(spec) {
+    name_part = strsplit(spec, "=", fixed = TRUE)[[1]][1]
+    name_part = sub("!$", "", name_part)
+    strsplit(name_part, "|", fixed = TRUE)[[1]]
+}
 
 parse_specification = function(spec_list) {
     if(length(spec_list) == 1) {
@@ -226,6 +276,8 @@ parse_specification = function(spec_list) {
         if(length(spec) == 1) {
             template = spec
             template = sub("^\\n", "", template)
+            # evaluate "{{ ... }}" chunks before the template is parsed
+            template = render_desc(template, .envir = glue_env())
             spec = parse_spec_template(template)
             if(nrow(spec) == 0) stop_wrap("Cannot detect argument specification in the template.")
         } else if(length(spec) %% 2) {
@@ -296,18 +348,33 @@ parse_spec_template = function(template, tag = argitect.options("template_tag"))
 # ============================================================
 
 add_short_flags = function(arguments) {
-    first_letters = vapply(arguments, function(a) substr(a$arg_name[1], 1, 1), character(1))
+    # explicit single-letter aliases are already taken
+    taken = unique(unlist(lapply(arguments, function(a) {
+        a$arg_name[nchar(a$arg_name) == 1]
+    }), use.names = FALSE))
+
+    # count the first letter of every multi-char name (first name and aliases)
+    first_letters = unlist(lapply(arguments, function(a) {
+        vapply(a$arg_name, function(nm) {
+            if(nchar(nm) > 1) substr(nm, 1, 1) else NA_character_
+        }, character(1))
+    }), use.names = FALSE)
+    first_letters = first_letters[!is.na(first_letters)]
     tb = table(first_letters)
 
     for(i in seq_along(arguments)) {
         a = arguments[[i]]
-        if(nzchar(a$flag)) next  # already has an explicit short flag
-        le = first_letters[i]
-        if(tb[[le]] == 1) {
-            a$flag = le
-            a$arg_name = c(a$arg_name, le)
-            arguments[[i]] = a
+        # add the first letter of each multi-char name as a short flag if it is
+        # unique and not already used as an explicit alias elsewhere
+        for(nm in a$arg_name) {
+            if(nchar(nm) == 1) next  # single-char alias is already an explicit flag
+            le = substr(nm, 1, 1)
+            if(tb[[le]] == 1 && !le %in% taken && !le %in% a$arg_name) {
+                a$arg_name = c(a$arg_name, le)
+                if(!nzchar(a$flag)) a$flag = le
+            }
         }
+        arguments[[i]] = a
     }
     arguments
 }
@@ -352,39 +419,58 @@ is_value_taking = function(a) {
 }
 
 
-is_negatable = function(a) {
+is_logical = function(a) {
     sv = a$spec_value
-    sv$arg_type == "$" && sv$arg_mode == "l" && isTRUE(sv$negatable)
+    sv$arg_type == "$" && sv$arg_mode == "l"
+}
+
+
+# try every negation form for a logical option:
+#   --no-X, --not-X, --noX, --notX, --X!, --!X
+try_negation = function(name, arguments, lookup, ignore_case) {
+    bases = character(0)
+    if(startsWith(name, "no-")) bases = c(bases, substr(name, 4, nchar(name)))
+    if(startsWith(name, "not-")) bases = c(bases, substr(name, 5, nchar(name)))
+    if(startsWith(name, "no")) bases = c(bases, substr(name, 3, nchar(name)))
+    if(startsWith(name, "not")) bases = c(bases, substr(name, 4, nchar(name)))
+    if(startsWith(name, "!")) bases = c(bases, substr(name, 2, nchar(name)))
+    if(nchar(name) > 1 && substr(name, nchar(name), nchar(name)) == "!") {
+        bases = c(bases, substr(name, 1, nchar(name) - 1))
+    }
+    for(base in unique(bases)) {
+        if(!nchar(base)) next
+        bkey = norm_key(base, ignore_case)
+        idx = lookup$long[[bkey]]
+        if(!is.null(idx) && is_logical(arguments[[idx]])) {
+            return(list(index = idx, negate = TRUE))
+        }
+    }
+    NULL
 }
 
 
 looks_like_option = function(tok) {
+    if(identical(tok, "-")) return(FALSE)  # "-" means standard input (a value)
     if(grepl("^-", tok)) {
-        if(grepl("^-[0-9.]+$", tok)) return(FALSE)  # negative number is a value
+        # a negative number is a value, not an option: -1, -1.5, -1e-3, -.5
+        if(grepl("^-[0-9]", tok)) return(FALSE)
+        if(grepl("^-\\.[0-9]", tok)) return(FALSE)
         return(TRUE)
     }
     FALSE
 }
 
 
-# resolve a long option name (exact -> negatable -> unique prefix)
+# resolve a long option name (exact -> negation -> unique prefix)
 resolve_long = function(name, arguments, lookup, ignore_case) {
     key = norm_key(name, ignore_case)
 
     idx = lookup$long[[key]]
     if(!is.null(idx)) return(list(index = idx, negate = FALSE))
 
-    # negation --no-X / --noX
-    for(prefix in c("no-", "no")) {
-        if(startsWith(name, prefix)) {
-            base = substr(name, nchar(prefix) + 1, nchar(name))
-            bkey = norm_key(base, ignore_case)
-            idx2 = lookup$long[[bkey]]
-            if(!is.null(idx2) && is_negatable(arguments[[idx2]])) {
-                return(list(index = idx2, negate = TRUE))
-            }
-        }
-    }
+    # negation --no-X / --not-X / --X! / --!X
+    neg = try_negation(name, arguments, lookup, ignore_case)
+    if(!is.null(neg)) return(neg)
 
     # unique prefix (auto abbreviation)
     cand = lookup$all_keys[startsWith(lookup$all_keys, key)]
@@ -407,6 +493,7 @@ resolve_short = function(body, arguments, lookup, bundling, ignore_case) {
         key = norm_key(body, ignore_case)
         cand = lookup$all_keys[startsWith(lookup$all_keys, key)]
         if(length(cand) == 1) return(list(index = lookup$long[[cand]], negate = FALSE, attached = NULL))
+        if(length(cand) > 1) stop_wrap("Option '-", body, "' is ambiguous.")
         stop_wrap("Unknown option: '-", body, "'.")
     }
 
@@ -416,6 +503,10 @@ resolve_short = function(body, arguments, lookup, bundling, ignore_case) {
     if(!is.null(idx)) return(list(index = idx, negate = FALSE, attached = NULL))
     cand = lookup$all_keys[startsWith(lookup$all_keys, key)]
     if(length(cand) == 1) return(list(index = lookup$long[[cand]], negate = FALSE, attached = NULL))
+
+    # negation (e.g. -no-verbose, -verbose!)
+    neg = try_negation(body, arguments, lookup, ignore_case)
+    if(!is.null(neg)) return(list(index = neg$index, negate = TRUE, attached = NULL))
 
     # bundling / attached value
     if(bundling) {
@@ -457,7 +548,7 @@ gather_values = function(arguments, idx, first_values, argv, i, ignore_case, for
 
 
 # consume values for a matched option starting at position i
-consume = function(arguments, idx, negate, inline, has_inline, argv, i, ignore_case) {
+consume = function(arguments, idx, negate, inline, has_inline, argv, i, ignore_case, value_sep = ",") {
     a = arguments[[idx]]
     sv = a$spec_value
     type = sv$arg_type
@@ -480,14 +571,19 @@ consume = function(arguments, idx, negate, inline, has_inline, argv, i, ignore_c
             i = i + 1
             val = argv[[i]]
         }
-        a$value = convert_value(val, mode)
+        a$value = convert_value(val, mode, name = a$arg_name[1])
         return(i)
 
     } else if(type == "@") {
-        force_min = if(isTRUE(sv$is_repeat) && is.numeric(sv$arg_range) && length(sv$arg_range) == 2) sv$arg_range[1] else 0
-        g = gather_values(arguments, idx, first, argv, i, ignore_case, force_min = force_min)
+        if(is.character(sv$arg_range)) {
+            # fixed-key array -> named vector built from key=value pairs
+            g = gather_values(arguments, idx, first, argv, i, ignore_case)
+            assign_named_vector(a, g$values, value_sep = value_sep)
+            return(g$i)
+        }
+        g = gather_values(arguments, idx, first, argv, i, ignore_case)
         if(length(g$values)) {
-            cv = convert_value(g$values, mode)
+            cv = convert_value(g$values, mode, name = a$arg_name[1])
             a$value = c(a$value, cv)
         }
         return(g$i)
@@ -496,14 +592,14 @@ consume = function(arguments, idx, negate, inline, has_inline, argv, i, ignore_c
         # positional option should not appear; but tolerate as array-like
         g = gather_values(arguments, idx, first, argv, i, ignore_case)
         if(length(g$values)) {
-            cv = convert_value(g$values, mode)
+            cv = convert_value(g$values, mode, name = a$arg_name[1])
             a$value = c(a$value, cv)
         }
         return(g$i)
 
     } else if(type == "%") {
         g = gather_values(arguments, idx, first, argv, i, ignore_case)
-        assign_hash(a, g$values)
+        assign_hash(a, g$values, value_sep = value_sep)
         return(g$i)
     }
 
@@ -520,8 +616,64 @@ find_sub = function(subs, nm) {
 }
 
 
+# whether a raw value can be converted to a mode without error
+matches_type = function(x, mode) {
+    res = tryCatch(convert_value(x, mode), error = function(e) e)
+    !inherits(res, "error")
+}
+
+
+# auto-detect the separator of a vector value among c(",", ";", ":", "|", "/")
+# returns the first separator whose split satisfies the type and count, or NULL
+detect_value_sep = function(val, mode, rng) {
+    seps = c(",", ";", ":", "|", "/")
+    for(sep in seps) {
+        parts = strsplit(val, sep, fixed = TRUE)[[1]]
+        if(length(parts) < 2) next
+        if(!all(vapply(parts, function(p) matches_type(p, mode), logical(1)))) next
+        if(is.numeric(rng) && length(rng) == 2) {
+            if(length(parts) < rng[1] || length(parts) > rng[2]) next
+        }
+        return(sep)
+    }
+    NULL
+}
+
+
+# assign key=value pairs to a fixed-key array (stored as a named vector)
+assign_named_vector = function(a, vals, value_sep = ",") {
+    sv = a$spec_value
+    keys = sv$arg_range
+    alias = attr(keys, "alias")
+
+    # start from the default value when available, so the command line only
+    # overrides the keys that are actually provided
+    cur = if(is.null(a$value)) {
+        if(a$has_default && !is.null(a$default)) a$default else {
+            switch(sv$arg_mode, i = integer(0), f = numeric(0), o = integer(0),
+                   s = character(0), l = logical(0))
+        }
+    } else a$value
+
+    for(v in vals) {
+        if(!grepl("=", v, fixed = TRUE)) {
+            stop_wrap("Option '", a$arg_name[1], "' expects key=value pairs.")
+        }
+        pos = regexpr("=", v, fixed = TRUE)[1]
+        nm = substr(v, 1, pos - 1)
+        val = substr(v, pos + 1, nchar(v))
+        if(!is.null(alias) && nm %in% names(alias)) nm = alias[[nm]]
+        if(!nm %in% keys && !isTRUE(attr(keys, "open"))) {
+            stop_wrap("Unknown key '", nm, "' for option '", a$arg_name[1], "'.")
+        }
+        cur[nm] = convert_value(val, sv$arg_mode, name = paste0(a$arg_name[1], "$", nm))
+    }
+    a$value = cur
+}
+
+
 # assign name=value pairs (and bare positional values) to a hash argument
-assign_hash = function(a, vals) {
+assign_hash = function(a, vals, value_sep = ",") {
     sv = a$spec_value
     subs = sv$arg_sub
     cur = if(is.null(a$value)) list() else a$value
@@ -536,22 +688,27 @@ assign_hash = function(a, vals) {
 
             sub = find_sub(subs, nm)
             if(is.null(sub)) {
-                if(length(subs) == 0) {
-                    cur[[nm]] = convert_value(val, sv$arg_mode)
+                if(length(subs) == 0 || isTRUE(attr(sv$arg_range, "open"))) {
+                    cur[[nm]] = convert_value(val, sv$arg_mode, name = paste0(a$arg_name[1], "$", nm))
                 } else {
                     stop_wrap("Unknown key '", nm, "' for hash option '", a$arg_name[1], "'.")
                 }
             } else {
                 m = if(is.na(sub$arg_mode)) sv$arg_mode else sub$arg_mode
-                cv = convert_value(val, m)
                 if(sub$arg_type == "@") {
+                    # a vector sub-argument: split the value by the separator
+                    sep = value_sep
+                    if(identical(sep, "auto")) sep = detect_value_sep(val, m, sub$arg_range)
+                    vals2 = if(is.null(sep)) val else strsplit(val, sep, fixed = TRUE)[[1]]
+                    cv = convert_value(vals2, m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
                     cur[[sub$arg_name[1]]] = c(cur[[sub$arg_name[1]]], cv)
                 } else {
+                    cv = convert_value(val, m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
                     cur[[sub$arg_name[1]]] = cv
                 }
             }
         } else {
-            # bare token: a logical sub-argument name, or a positional value
+            # bare token: a logical sub-argument name, its negation, or a positional value
             sub = find_sub(subs, v)
             if(!is.null(sub)) {
                 if(sub$arg_type == "$" && sub$arg_mode == "l") {
@@ -560,7 +717,24 @@ assign_hash = function(a, vals) {
                     stop_wrap("Key '", v, "' for hash option '", a$arg_name[1], "' requires a value.")
                 }
             } else {
-                bare = c(bare, v)
+                # negation of a logical sub-argument: no-bar / not-bar
+                neg_base = NULL
+                for(prefix in c("no-", "not-")) {
+                    if(startsWith(v, prefix)) {
+                        base = substr(v, nchar(prefix) + 1, nchar(v))
+                        sub2 = find_sub(subs, base)
+                        if(!is.null(sub2) && sub2$arg_type == "$" && sub2$arg_mode == "l") {
+                            neg_base = base
+                            break
+                        }
+                    }
+                }
+                if(!is.null(neg_base)) {
+                    sub2 = find_sub(subs, neg_base)
+                    cur[[sub2$arg_name[1]]] = FALSE
+                } else {
+                    bare = c(bare, v)
+                }
             }
         }
     }
@@ -572,18 +746,29 @@ assign_hash = function(a, vals) {
             stop_wrap("Option '", a$arg_name[1], "' expects name=value pairs.")
         }
         k = 1L
-        for(ps in pos_idx) {
-            sub = subs[[ps]]
+        n_pos = length(pos_idx)
+        for(j in seq_along(pos_idx)) {
+            sub = subs[[pos_idx[j]]]
             m = if(is.na(sub$arg_mode)) sv$arg_mode else sub$arg_mode
             rng = sub$arg_range
             single = is.numeric(rng) && rng[1] == 1 && rng[2] == 1
+            last = (j == n_pos)
             if(k > length(bare)) break
             if(single) {
-                cur[[sub$arg_name[1]]] = convert_value(bare[k], m)
+                cur[[sub$arg_name[1]]] = convert_value(bare[k], m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
                 k = k + 1L
-            } else {
-                cur[[sub$arg_name[1]]] = convert_value(bare[k:length(bare)], m)
+            } else if(last) {
+                cur[[sub$arg_name[1]]] = convert_value(bare[k:length(bare)], m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
                 k = length(bare) + 1L
+            } else {
+                # variable positional, not last: greedily take values matching the type
+                mx = if(is.numeric(rng)) rng[2] else MAX_NV
+                taken = character(0)
+                while(k <= length(bare) && length(taken) < mx && matches_type(bare[k], m)) {
+                    taken = c(taken, bare[k])
+                    k = k + 1L
+                }
+                cur[[sub$arg_name[1]]] = convert_value(taken, m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
             }
         }
         if(k <= length(bare)) {
@@ -596,7 +781,7 @@ assign_hash = function(a, vals) {
 
 
 # main argv parser
-parse_argv = function(arguments, argv, config = NULL) {
+parse_argv = function(arguments, argv, config = NULL, value_sep = ",") {
     if(is.null(config)) config = character(0)
 
     bundling = !("no_bundling" %in% config)
@@ -629,9 +814,9 @@ parse_argv = function(arguments, argv, config = NULL) {
                 has_inline = FALSE
             }
             m = resolve_long(name, arguments, lookup, ignore_case)
-            i = consume(arguments, m$index, m$negate, inline, has_inline, argv, i, ignore_case)
+            i = consume(arguments, m$index, m$negate, inline, has_inline, argv, i, ignore_case, value_sep = value_sep)
 
-        } else if(grepl("^-", tok) && nchar(tok) > 1) {
+        } else if(grepl("^-", tok) && nchar(tok) > 1 && looks_like_option(tok)) {
             body = substr(tok, 2, nchar(tok))
             eq = regexpr("=", body, fixed = TRUE)[1]
             if(eq > 0) {
@@ -659,9 +844,9 @@ parse_argv = function(arguments, argv, config = NULL) {
                     if(is_value_taking(a2)) {
                         attached = if(j < nchar(rest)) substr(rest, j + 1, nchar(rest)) else ""
                         if(nzchar(attached)) {
-                            i = consume(arguments, idx2, FALSE, attached, TRUE, argv, i, ignore_case)
+                            i = consume(arguments, idx2, FALSE, attached, TRUE, argv, i, ignore_case, value_sep = value_sep)
                         } else {
-                            i = consume(arguments, idx2, FALSE, "", FALSE, argv, i, ignore_case)
+                            i = consume(arguments, idx2, FALSE, "", FALSE, argv, i, ignore_case, value_sep = value_sep)
                         }
                         j = nchar(rest) + 1L
                     } else {
@@ -671,9 +856,9 @@ parse_argv = function(arguments, argv, config = NULL) {
                 }
             } else {
                 if(!is.null(m$attached) && nzchar(m$attached)) {
-                    i = consume(arguments, m$index, m$negate, m$attached, TRUE, argv, i, ignore_case)
+                    i = consume(arguments, m$index, m$negate, m$attached, TRUE, argv, i, ignore_case, value_sep = value_sep)
                 } else {
-                    i = consume(arguments, m$index, m$negate, inline, has_inline, argv, i, ignore_case)
+                    i = consume(arguments, m$index, m$negate, inline, has_inline, argv, i, ignore_case, value_sep = value_sep)
                 }
             }
 
@@ -696,8 +881,10 @@ assign_positional = function(arguments, positional) {
     np = length(positional)
 
     if(length(idxs) == 0) {
-        # no positional arguments declared: silently ignore leftovers
-        # (matches GetoptLong, which does not check stray arguments)
+        if(np) {
+            stop_wrap("Unexpected positional argument(s): ", paste(positional, collapse = " "),
+                      ". No positional argument is declared in the specification.")
+        }
         return(invisible(NULL))
     }
 
@@ -714,14 +901,14 @@ assign_positional = function(arguments, positional) {
         if(last) {
             take = min(remaining, mx)
             if(take > 0) {
-                a$value = convert_value(positional[k:(k + take - 1)], a$spec_value$arg_mode)
+                a$value = convert_value(positional[k:(k + take - 1)], a$spec_value$arg_mode, name = a$arg_name[1])
                 k = k + take
             }
         } else {
             if(remaining < mn) {
                 stop_wrap("Insufficient positional arguments for '", a$arg_name[1], "'.")
             }
-            a$value = convert_value(positional[k:(k + mn - 1)], a$spec_value$arg_mode)
+            a$value = convert_value(positional[k:(k + mn - 1)], a$spec_value$arg_mode, name = a$arg_name[1])
             k = k + mn
         }
     }
@@ -737,12 +924,87 @@ assign_positional = function(arguments, positional) {
 # Final validation (ranges + mandatory)
 # ============================================================
 
+# check that a default value matches the specification format
+check_default_type = function(d, mode, name) {
+    type_word = c("i" = "integer", "f" = "numeric", "s" = "character",
+                  "l" = "logical")[[mode]]
+    ok = TRUE
+    if(mode %in% c("i", "f")) {
+        ok = is.numeric(d)
+    } else if(mode == "s") {
+        ok = is.character(d)
+    }
+    if(!ok) {
+        stop_wrap("The default of '", name, "' should be ", type_word, ".")
+    }
+    invisible(NULL)
+}
+
+check_default_format = function(a) {
+    if(!a$has_default || is.null(a$default)) return(invisible(NULL))
+    sv = a$spec_value
+    type = sv$arg_type
+    mode = sv$arg_mode
+    d = a$default
+
+    if(type == "$" && mode == "l") return(invisible(NULL))
+
+    if(type == "$") {
+        if(length(d) != 1) {
+            stop_wrap("The default of '", a$arg_name[1], "' should be a scalar (length 1).")
+        }
+        check_default_type(d, mode, a$arg_name[1])
+        return(invisible(NULL))
+    }
+
+    if(type == "@" && is.character(sv$arg_range)) {
+        # fixed-key named vector
+        if(!(is.atomic(d) && is.vector(d))) {
+            stop_wrap("The default of '", a$arg_name[1], "' should be an atomic vector.")
+        }
+        if(is.null(names(d))) {
+            stop_wrap("The default of '", a$arg_name[1], "' should be a named vector with keys: ",
+                      paste(sv$arg_range, collapse = ", "), ".")
+        }
+        keys = sv$arg_range
+        alias = attr(keys, "alias")
+        allowed = c(keys, if(!is.null(alias)) names(alias))
+        for(k in names(d)) {
+            if(!k %in% allowed) {
+                stop_wrap("Unknown key '", k, "' in the default of '", a$arg_name[1], "'.")
+            }
+        }
+        check_default_type(d, mode, a$arg_name[1])
+        return(invisible(NULL))
+    }
+
+    if(type == "@") {
+        if(!(is.atomic(d) && is.vector(d))) {
+            stop_wrap("The default of '", a$arg_name[1], "' should be an atomic vector.")
+        }
+        check_default_type(d, mode, a$arg_name[1])
+        return(invisible(NULL))
+    }
+
+    if(type == "%") {
+        if(!is.list(d) || is.null(names(d))) {
+            stop_wrap("The default of '", a$arg_name[1], "' should be a named list.")
+        }
+        return(invisible(NULL))
+    }
+
+    invisible(NULL)
+}
+
+
 validate_all = function(arguments) {
     for(a in arguments) {
         if(a$arg_name[1] %in% DEFAULT_ARGUMENTS) next
         sv = a$spec_value
         type = sv$arg_type
         mode = sv$arg_mode
+
+        check_default_format(a)
 
         if(type == "$" && mode == "l") {
             # logical arguments always have a value (FALSE or the negatable default)
@@ -751,11 +1013,30 @@ validate_all = function(arguments) {
         }
 
         if(type == "%") {
+            if(is.null(a$value)) {
+                if(a$is_mandatory) {
+                    stop_wrap("Argument '", a$arg_name[1], "' is mandatory.")
+                }
+                next
+            }
             # merge default values for keys not specified on the command line
-            if(!is.null(a$value) && a$has_default && is.list(a$default)) {
+            if(a$has_default && is.list(a$default)) {
                 old_nm = setdiff(names(a$default), names(a$value))
                 if(length(old_nm)) {
                     a$value = c(a$value, a$default[old_nm])
+                }
+            }
+            # declared sub-arguments are required; logical sub-arguments
+            # default to FALSE when not specified
+            for(sub in sv$arg_sub) {
+                nm = sub$arg_name[1]
+                if(!nm %in% names(a$value)) {
+                    if(sub$arg_type == "$" && sub$arg_mode == "l") {
+                        a$value[[nm]] = FALSE
+                    } else {
+                        stop_wrap("Missing value for sub-argument '", nm, "' of option '",
+                                  a$arg_name[1], "'.")
+                    }
                 }
             }
             # validate sub-argument ranges
@@ -763,6 +1044,23 @@ validate_all = function(arguments) {
                 v = a$value[[sub$arg_name[1]]]
                 if(!is.null(v) && sub$arg_type %in% c("@", "#")) {
                     check_range(v, sub$arg_range, sub$arg_type, a$arg_name[1])
+                }
+            }
+            next
+        }
+
+        if(type == "@" && is.character(sv$arg_range)) {
+            # fixed-key named vector: every key must be present
+            if(is.null(a$value)) {
+                if(a$is_mandatory) {
+                    stop_wrap("Argument '", a$arg_name[1], "' is mandatory.")
+                }
+            } else {
+                keys = sv$arg_range
+                missing = setdiff(keys, names(a$value))
+                if(length(missing)) {
+                    stop_wrap("Missing value(s) for key(s) '", paste(missing, collapse = "', '"),
+                              "' of option '", a$arg_name[1], "'.")
                 }
             }
             next
@@ -783,19 +1081,6 @@ validate_all = function(arguments) {
 check_range = function(v, rng, type, name) {
     if(type == "$") {
         if(length(v) > 1) stop_wrap("Only a single value is allowed for '", name, "'.")
-        return(invisible(NULL))
-    }
-
-    if(is.character(rng)) {
-        allowed = rng
-        alias = attr(rng, "alias")
-        if(!is.null(alias)) allowed = c(allowed, names(alias))
-        for(z in v) {
-            if(!as.character(z) %in% allowed) {
-                stop_wrap("Value '", z, "' is not allowed for '", name, "'. Allowed values: ",
-                          paste(rng, collapse = ", "), ".")
-            }
-        }
         return(invisible(NULL))
     }
 

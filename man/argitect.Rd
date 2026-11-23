@@ -11,13 +11,15 @@ argitect(
   envir = parent.frame(),
   argv_str = NULL,
   template_control = list(),
-  help_style = argitect.options("help_style")
+  help_style = argitect.options("help_style"),
+  explain = FALSE,
+  value_sep = argitect.options("value_sep")
 )
 }
 \arguments{
 \item{...}{Argument specifications. They can be given as
-\code{(specification, description)} pairs, a two-column matrix, or a
-single text template. See Details.}
+\verb{(specification, description)} pairs, a two-column matrix, or a single
+text template. See Details.}
 
 \item{help_head}{Head of the help message shown by \code{--help}.}
 
@@ -35,39 +37,55 @@ testing purposes.}
 
 \item{help_style}{The style of the help message: \code{"one-column"} or
 \code{"two-column"}.}
+
+\item{explain}{If \code{TRUE}, print an explanation of each argument
+specification (its format and simple examples) and return without
+parsing any command-line arguments.}
+
+\item{value_sep}{The separator used to split multiple values inside a
+single \code{name=value} pair for a vector sub-argument. The default \code{"auto"}
+detects the separator among \code{","}, \code{";"}, \code{":"}, \code{"|"} and \code{"/"} by
+picking the one that satisfies the type and count constraints.}
 }
 \value{
 Invisibly, a list of the parsed argument objects. Parsed values are
-  also exported to \code{envir} as variables named after the first
-  specification name.
+also exported to \code{envir} as variables named after the first specification
+name.
 }
 \description{
 A pure-R command-line argument parser that reimplements the functionality
-of the Perl module `Getopt::Long` without any external dependency, and
+of the Perl module \code{Getopt::Long} without any external dependency, and
 additionally supports positional arguments.
 }
 \details{
-Each argument specification is \code{name[|alias...]=spec}. The value part
-\code{spec} consists of an optional \emph{mode} (\code{i} integer,
-\code{f} numeric, \code{s} character, \code{l} logical, \code{o} extended
-integer) and an optional \emph{type} (\code{$} scalar, \code{#}
-positional, \code{@} vector, \code{\%} hash), optionally followed by a
-bracketed range or sub-argument list.
-
+Each argument specification is \verb{name[|alias...]=spec}. The value part
+\code{spec} consists of an optional \emph{mode} (\code{i} integer, \code{f} numeric, \code{s}
+character, \code{l} logical) and an optional \emph{type} (\code{$}
+scalar, \verb{#} positional, \code{@} vector, \verb{\%} hash), optionally followed by a
+bracketed range or sub-argument list. The \code{i} mode also accepts extended
+integer notation: \verb{0x}/\verb{0X} hexadecimal, \verb{0b}/\verb{0B} binary, \code{0}-prefixed
+octal (e.g. \code{0123}), and decimal.
 \itemize{
-  \item \code{"number=i"} -- a single integer scalar.
-  \item \code{"name=s"} -- a single character scalar.
-  \item \code{"length|size=i"} -- an integer scalar with two names.
-  \item \code{"tag=i@"} -- an integer vector.
-  \item \code{"tag=i{2,}"} -- an integer vector with at least two elements.
-  \item \code{"param=s\%"} -- name=value pairs with character values.
-  \item \code{"input=s#"} -- one positional argument.
-  \item \code{"files=s#\{\}"} -- one or more positional arguments.
-  \item \code{"verbose!"} -- a logical option, negatable with
-        \code{--no-verbose}.
+\item \code{"number=i"}: a single integer scalar.
+\item \code{"name=s"}: a single character scalar.
+\item \code{"length|size=i"}: an integer scalar with two names.
+\item \code{"tag=i@"}: an integer vector.
+\item \code{"tag=i{2,}"}: an integer vector with at least two elements.
+\item \code{"param=s\%"}: name=value pairs with character values.
+\item \code{"input=s#"}: one positional argument.
+\item \code{"files=s#{}"}: one or more positional arguments.
+\item \code{"verbose!"}: a logical option, negatable with \code{--no-verbose}.
 }
 
-If a variable with the first name already exists in \code{envir} (and is
-not a function), it is used as the default value and the option becomes
-optional. Logical options always default to \code{FALSE}.
+If a variable with the first name already exists in \code{envir} (and is not a
+function), it is used as the default value and the option becomes optional.
+Logical options always default to \code{FALSE}.
+}
+\examples{
+e = new.env()
+argitect("count=i", "Number of items.", "verbose!", "Print messages.",
+    envir = e, argv_str = "--count 3 --verbose")
+e$count
+e$verbose
+
 }

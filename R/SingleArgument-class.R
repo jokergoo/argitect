@@ -3,7 +3,7 @@
 # A single argument (option) — specification, parsing, validation, help
 # ============================================================
 
-ALL_MODES = c("i", "f", "s", "l", "o")
+ALL_MODES = c("i", "f", "s", "l")
 ALL_TYPES = c("$", "#", "@", "%")
 MAX_NV = 999999L
 BRACKET = c("{" = "}", "(" = ")", "[" = "]", "<" = ">")
@@ -14,7 +14,7 @@ DEFAULT_ARGUMENTS = c("help", "version")
 
 # mode / type explanations used in show() and errors
 EXPLAIN_MODE = c("i" = "integer", "f" = "numeric", "s" = "character",
-                 "l" = "logical", "o" = "extended_integer")
+                 "l" = "logical")
 EXPLAIN_TYPE = c("$" = "scalar", "%" = "hash", "@" = "vector", "#" = "positional")
 
 
@@ -86,6 +86,13 @@ SingleArgument$methods(
         }
 
         if(found) {
+            # a non-logical default for a logical argument is coerced (with a warning)
+            if(.self$spec_value$arg_type == "$" && .self$spec_value$arg_mode == "l" &&
+               !is.logical(v)) {
+                warning_wrap("The default value of '", var_nm,
+                             "' is not logical; it is coerced to logical with as.logical().")
+                v = as.logical(v)
+            }
             .self$has_default = TRUE
             .self$default = v
             .self$is_mandatory = FALSE
@@ -102,29 +109,20 @@ SingleArgument$methods(
             }
         }
 
-        # for non-negatable logicals, the default is always reset to FALSE
-        if(.self$spec_value$arg_type == "$" && .self$spec_value$arg_mode == "l" &&
-           !isTRUE(.self$spec_value$negatable) && found) {
-            .self$default = FALSE
-        }
-
         invisible(NULL)
     }
 )
 
 
 # convert one or more character values to the typed value according to the mode
-convert_value = function(x, mode) {
+# `name` is optional and is used to make conversion errors point at the argument
+convert_value = function(x, mode, name = NULL) {
+    err_suffix = if(is.null(name)) "" else paste0(" for option '", name, "'")
     if(mode == "s") {
         return(as.character(x))
     } else if(mode == "i") {
-        y = suppressWarnings(as.integer(x))
-        bad = is.na(y) | !grepl("^[+-]?[0-9]+$", trimws(x))
-        if(any(bad)) {
-            stop_wrap("Value '", x[which(bad)[1]], "' is not a valid integer.")
-        }
-        return(y)
-    } else if(mode == "o") {
+        # integer mode also accepts extended integer notation:
+        # 0x/0X hex, 0b/0B binary, 0[0-7]+ octal, otherwise decimal
         y = vapply(x, function(z) {
             z = trimws(z)
             if(grepl("^0[xX][0-9a-fA-F]+$", z)) return(strtoi(substr(z, 3, nchar(z)), base = 16L))
@@ -134,13 +132,13 @@ convert_value = function(x, mode) {
             NA_integer_
         }, integer(1), USE.NAMES = FALSE)
         if(any(is.na(y))) {
-            stop_wrap("Value '", x[which(is.na(y))[1]], "' is not a valid extended integer.")
+            stop_wrap("Value '", x[which(is.na(y))[1]], "' is not a valid integer", err_suffix, ".")
         }
         return(y)
     } else if(mode == "f") {
         y = suppressWarnings(as.numeric(x))
         if(any(is.na(y))) {
-            stop_wrap("Value '", x[which(is.na(y))[1]], "' is not a valid number.")
+            stop_wrap("Value '", x[which(is.na(y))[1]], "' is not a valid number", err_suffix, ".")
         }
         return(y)
     } else if(mode == "l") {
@@ -152,7 +150,7 @@ convert_value = function(x, mode) {
             } else if(z %in% c("false", "f", "no", "n", "0", "off")) {
                 y[k] = FALSE
             } else {
-                stop_wrap("Value '", x[k], "' is not a valid logical.")
+                stop_wrap("Value '", x[k], "' is not a valid logical", err_suffix, ".")
             }
         }
         return(y)
@@ -259,6 +257,7 @@ parse_spec = function(spec) {
     if(nchar(spec) == 0) stop_wrap("Argument specification should not be empty.")
 
     negatable = FALSE
+    plain_logical = FALSE
 
     if(grepl("=", spec, fixed = TRUE)) {
         pos = regexpr("=", spec, fixed = TRUE)[1]
@@ -270,12 +269,17 @@ parse_spec = function(spec) {
             negatable = TRUE
         } else {
             name_part = spec
-            warning_wrap("Logical specification should end with '!'. ", spec, " -> ", paste0(spec, "!"))
+            plain_logical = TRUE
         }
         value_part = "l"
     }
 
+    # validate the name before emitting any warning
     arg_name = parse_names(name_part)
+
+    if(plain_logical) {
+        warning_wrap("Logical specification should end with '!'. ", spec, " -> ", paste0(spec, "!"))
+    }
 
     sv = parse_value_part(value_part, spec, allow_hash = TRUE)
     sv$negatable = negatable
@@ -295,8 +299,11 @@ parse_names = function(name_part) {
                 stop_wrap("Argument name '", nm[i], "' should be a valid R variable name.")
             }
         } else {
+            if(grepl("^[0-9]+$", nm[i])) {
+                stop_wrap("Alias '", nm[i], "' cannot be entirely numeric.")
+            }
             if(!grepl("^[A-Za-z0-9._-]+$", nm[i])) {
-                stop_wrap("Alias '", nm[i], "' is in wrong format.")
+                stop_wrap("Alias '", nm[i], "' is in wrong format. Only letters, digits, '.', '_' and '-' are allowed.")
             }
         }
     }
@@ -316,20 +323,24 @@ parse_value_part = function(value_part, spec, allow_hash = TRUE) {
 
     ch1 = substr(value_part, 1, 1)
 
-    # mode-first forms: i, f, s, o, then optionally a type
-    if(ch1 %in% c("i", "f", "s", "o")) {
+    # mode-first forms: i, f, s, then optionally a type
+    if(ch1 %in% c("i", "f", "s")) {
         if(nc == 1) {
             return(list(arg_mode = ch1, arg_type = "$", arg_range = c(1L, 1L),
                         arg_sub = list(), negatable = FALSE))
         }
-        tail = substr(value_part, 2, nc)
-        res = parse_typed(tail, arg_mode = ch1, spec = spec, allow_hash = allow_hash)
-        return(res)
+        return(parse_typed(substr(value_part, 2, nc), arg_mode = ch1,
+                           spec = spec, allow_hash = allow_hash))
     }
 
-    # type-first forms: # @ % (mode defaults to "s"), only valid with bracket
+    # type-first forms: # @ % (mode defaults to "s")
     if(ch1 %in% c("#", "@", "%")) {
         if(nc == 1) {
+            if(ch1 == "%") {
+                warning_wrap("Bare '%' is treated as an untyped list. ", spec, " -> ", paste0("s", spec))
+                return(list(arg_mode = "s", arg_type = "%", arg_range = NULL,
+                            arg_sub = list(), negatable = FALSE))
+            }
             stop_wrap("A bare type '", ch1, "' needs a mode or a bracketed range. In: ", spec)
         }
         res = parse_typed(value_part, arg_mode = NA_character_, spec = spec, allow_hash = allow_hash)
@@ -337,7 +348,58 @@ parse_value_part = function(value_part, spec, allow_hash = TRUE) {
         return(res)
     }
 
+    # bare bracket forms: {...} / (...) / [...] / <...>
+    if(ch1 %in% LEFT_BRACKET) {
+        close = substr(value_part, nc, nc)
+        if(BRACKET[[ch1]] != close) stop_wrap("Bracket is not closed in: ", spec)
+        inner = substr(value_part, 2, nc - 1)
+
+        if(gsub("\\s+", "", inner) == "") {
+            warning_wrap("Empty '", ch1, close, "' is treated as an untyped list. ", spec, " -> %{}")
+            return(list(arg_mode = "s", arg_type = "%", arg_range = NULL,
+                        arg_sub = list(), negatable = FALSE))
+        }
+
+        pieces = split_by_top_level_commas(inner)
+        pieces = pieces[pieces != ""]
+        if(!any(grepl("=", pieces, fixed = TRUE))) {
+            stop_wrap("A bare '", ch1, "...", close, "' is ambiguous; use '%' explicitly for a list. In: ", spec)
+        }
+
+        warning_wrap("Bare '", ch1, "...", close, "' is treated as a list; use '%' explicitly. ",
+                     spec, " -> ", paste0("%", value_part))
+        hs = parse_hash_subs(NA_character_, inner, spec)
+        return(list(arg_mode = "s", arg_type = "%", arg_range = hs$arg_range,
+                    arg_sub = hs$arg_sub, negatable = FALSE))
+    }
+
     stop_wrap("Wrong specification: ", spec)
+}
+
+
+# parse the sub-arguments of a hash and build the key list (with aliases)
+parse_hash_subs = function(arg_mode, inner, spec) {
+    # a trailing comma means "open": the declared sub-arguments are required,
+    # but additional names are also accepted. This is only allowed when the
+    # hash mode is determined (explicit parent mode).
+    open = grepl(",$", gsub("\\s+", "", inner))
+    if(open && is.na(arg_mode)) {
+        stop_wrap("A trailing comma is not allowed when the hash mode is not determined. In: ", spec)
+    }
+    arg_sub = parse_subs(inner, arg_mode, spec)
+    nm = vapply(arg_sub, function(s) s$arg_name[1], character(1))
+    rng = NULL
+    if(length(nm)) {
+        alias = do.call(c, lapply(arg_sub, function(s) {
+            if(length(s$arg_name) > 1) {
+                structure(rep(s$arg_name[1], length(s$arg_name) - 1), names = s$arg_name[-1])
+            } else character(0)
+        }))
+        rng = nm
+        if(length(alias)) attr(rng, "alias") = alias
+    }
+    if(open && !is.null(rng)) attr(rng, "open") = TRUE
+    list(arg_sub = arg_sub, arg_range = rng)
 }
 
 
@@ -347,20 +409,11 @@ parse_typed = function(tail, arg_mode, spec, allow_hash = TRUE) {
     ch = substr(tail, 1, 1)
 
     res = list(arg_mode = arg_mode, arg_type = NA_character_,
-               arg_range = NULL, arg_sub = list(), negatable = FALSE,
-               is_repeat = FALSE)
+               arg_range = NULL, arg_sub = list(), negatable = FALSE)
 
-    # GetoptLong repeat shorthand: mode{min,max}, e.g. i{2,4} -> a vector
+    # mode{...} without a type character is ambiguous
     if(ch %in% LEFT_BRACKET) {
-        res$arg_type = "@"
-        res$is_repeat = TRUE
-        close = substr(tail, nc, nc)
-        if(BRACKET[[ch]] != close) {
-            stop_wrap("Bracket is not closed in: ", spec)
-        }
-        inner = substr(tail, 2, nc - 1)
-        res$arg_range = parse_range(inner, "@", spec, allow_names = FALSE)
-        return(res)
+        stop_wrap("A type character (#, @, %) is required before a bracket; use i@{...} or i#{...}. In: ", spec)
     }
 
     if(!(ch %in% c("$", "#", "@", "%"))) {
@@ -393,26 +446,24 @@ parse_typed = function(tail, arg_mode, spec, allow_hash = TRUE) {
         stop_wrap("'$' is a scalar type, no range should be specified. In: ", spec)
     } else if(ch %in% c("#", "@")) {
         res$arg_range = parse_range(inner, ch, spec)
-    } else if(ch == "%") {
-        res$arg_sub = parse_subs(inner, arg_mode, spec)
-        nm = vapply(res$arg_sub, function(s) s$arg_name[1], character(1))
-        if(length(nm)) {
-            alias = do.call(c, lapply(res$arg_sub, function(s) {
-                if(length(s$arg_name) > 1) {
-                    structure(rep(s$arg_name[1], length(s$arg_name) - 1), names = s$arg_name[-1])
-                } else character(0)
-            }))
-            res$arg_range = nm
-            if(length(alias)) attr(res$arg_range, "alias") = alias
+        if(isTRUE(attr(res$arg_range, "open")) && is.na(arg_mode)) {
+            stop_wrap("A trailing comma is not allowed when the mode is not determined. In: ", spec)
         }
+    } else if(ch == "%") {
+        if(is.na(arg_mode) && gsub("\\s+", "", inner) == "") {
+            stop_wrap("'%{}' is not allowed; use '%' for an untyped list or a typed form. In: ", spec)
+        }
+        hs = parse_hash_subs(arg_mode, inner, spec)
+        res$arg_sub = hs$arg_sub
+        res$arg_range = hs$arg_range
     }
 
     res
 }
 
 
-# parse a numeric range "{min,max}" or a list of allowed names "{foo, bar|baz}"
-parse_range = function(inner, type, spec, allow_names = TRUE) {
+# parse a numeric range "{min,max}" or a list of fixed keys "{foo, bar|baz}"
+parse_range = function(inner, type, spec) {
     inner = gsub("\\s+", "", inner)
 
     if(inner == "") {
@@ -438,11 +489,9 @@ parse_range = function(inner, type, spec, allow_names = TRUE) {
         }
     }
 
-    if(!allow_names) {
-        stop_wrap("Only numeric ranges are allowed in this form. In: ", spec)
-    }
-
-    # otherwise a list of allowed names
+    # otherwise a list of fixed keys; a trailing comma means "open"
+    open = grepl(",$", inner)
+    if(open) inner = sub(",$", "", inner)
     values = strsplit(inner, ",", fixed = TRUE)[[1]]
     if(any(!grepl("^[A-Za-z0-9._-]+(\\|[A-Za-z0-9._-]+)*$", values))) {
         stop_wrap("Wrong range specification: ", spec)
@@ -453,6 +502,7 @@ parse_range = function(inner, type, spec, allow_names = TRUE) {
     }))
     rng = vapply(nl, function(x) x[1], character(1))
     if(length(alias)) attr(rng, "alias") = alias
+    if(open) attr(rng, "open") = TRUE
     rng
 }
 
@@ -473,10 +523,19 @@ parse_subs = function(inner, arg_mode, spec) {
         arg_sub[[length(arg_sub) + 1]] = parse_sub_spec(v, spec)
     }
 
-    # inherit parent mode where the sub argument leaves it unspecified
+    # inherit parent mode where the sub argument leaves it unspecified;
+    # with an implicit parent mode every sub argument must specify its type;
+    # an explicit sub mode always overrides the parent mode
+    parent_explicit = !is.na(arg_mode)
     for(i in seq_along(arg_sub)) {
-        if(is.na(arg_sub[[i]]$arg_mode)) {
-            arg_sub[[i]]$arg_mode = if(is.na(arg_mode)) "s" else arg_mode
+        sub_mode = arg_sub[[i]]$arg_mode
+        if(is.na(sub_mode)) {
+            if(parent_explicit) {
+                arg_sub[[i]]$arg_mode = arg_mode
+            } else {
+                stop_wrap("Sub-argument '", arg_sub[[i]]$arg_name[1],
+                          "' must specify its type. In: ", spec)
+            }
         }
     }
 
@@ -503,6 +562,7 @@ split_by_top_level_commas = function(x) {
     s = c(1L, comma + 1L)
     e = c(comma - 1L, n)
     vapply(seq_along(s), function(i) {
+        if(s[i] > e[i]) return("")
         paste(chars[s[i]:e[i]], collapse = "")
     }, character(1))
 }
@@ -546,7 +606,7 @@ parse_sub_spec = function(s, spec) {
 
     ch1 = substr(value_part, 1, 1)
 
-    if(ch1 %in% c("i", "f", "s", "o")) {
+    if(ch1 %in% c("i", "f", "s")) {
         if(nchar(value_part) == 1) {
             return(list(arg_name = arg_name, arg_mode = ch1, arg_type = "$",
                         arg_range = c(1L, 1L), negatable = FALSE))
@@ -558,8 +618,8 @@ parse_sub_spec = function(s, spec) {
     }
 
     if(ch1 %in% c("#", "@", "%")) {
-        if(nchar(value_part) == 1) {
-            stop_wrap("A bare type '", ch1, "' needs a mode or a bracketed range. In: ", spec)
+        if(nchar(value_part) == 1 && ch1 == "%") {
+            stop_wrap("'%' (hash) is not allowed in sub-arguments. In: ", spec)
         }
         res = parse_typed(value_part, arg_mode = NA_character_, spec = spec, allow_hash = FALSE)
         res$negatable = negatable

@@ -2,21 +2,21 @@ Package: argitect
 Type: Package
 Title: Native Command-Line Argument Parsing with Rich Help Messages
 Version: 0.1.0
-Authors@R: person("argitect", "authors", email = "argitect@example.com",
-                  role = c("aut", "cre"))
+Authors@R: person("Zuguang", "Gu", email = "guzuguang@suat-sz.edu.cn", role = c("aut", "cre"),
+                  comment = c('ORCID'="0000-0002-7395-8709"))
 Description: A pure-R command-line argument parser that reimplements the
-    functionality of the Perl module Getopt::Long without any external
+    functionality of the Perl module 'Getopt::Long' without any external
     dependency, and additionally supports positional arguments. It provides
-    rich, customizable help messages inspired by the 'GetoptLong' package,
-    including one-column and two-column styles, template-based usage text,
-    option grouping, default-value reporting and sub-option documentation,
-    as well as sub-command dispatch. 
+    rich, customizable help messages, including one-column and two-column 
+    styles, template-based usage text, option grouping, default-value 
+    reporting and sub-option documentation, as well as sub-command dispatch.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.0.0)
-Imports: methods, GlobalOptions (>= 0.1.0)
+Imports: methods, GlobalOptions (>= 0.1.0), cli, glue
 Suggests: testthat (>= 3.0.0)
 NeedsCompilation: no
+Roxygen: list(markdown = TRUE)
 Collate:
     'argitect-package.R'
     '0_global.R'

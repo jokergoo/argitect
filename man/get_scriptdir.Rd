@@ -7,9 +7,13 @@
 get_scriptdir()
 }
 \value{
-A character string, or \code{NULL} if the R script is not run from
-  the command line.
+A character string, or \code{NULL} if the R script is not run from the
+command line.
 }
 \description{
 Returns the directory of the currently running R script.
+}
+\examples{
+get_scriptdir()
+
 }

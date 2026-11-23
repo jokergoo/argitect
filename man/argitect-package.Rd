@@ -8,17 +8,16 @@
 A pure-R command-line argument parser that reimplements the functionality
 of the Perl module \code{Getopt::Long} without any external dependency, and
 additionally supports positional arguments. It provides rich, customizable
-help messages inspired by the 'GetoptLong' package, including one-column
-and two-column styles, template-based usage text, option grouping,
-default-value reporting and sub-option documentation, as well as
-sub-command dispatch.
+help messages, including one-column and two-column styles, template-based
+usage text, option grouping, default-value reporting and sub-option documentation,
+as well as sub-command dispatch.
 }
 \author{
-\strong{Maintainer}: argitect authors \email{argitect@example.com}
+\strong{Maintainer}: Zuguang Gu \email{guzuguang@suat-sz.edu.cn} (\href{https://orcid.org/0000-0002-7395-8709}{ORCID})
 
 Authors:
 \itemize{
-  \item argitect authors \email{argitect@example.com}
+  \item Zuguang Gu \email{guzuguang@suat-sz.edu.cn} (\href{https://orcid.org/0000-0002-7395-8709}{ORCID})
 }
 
 }

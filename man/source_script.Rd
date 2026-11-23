@@ -9,15 +9,25 @@ source_script(file, ..., argv_str = NULL)
 \arguments{
 \item{file}{The R script to source.}
 
-\item{...}{Passed to \code{\link[base]{source}}.}
+\item{...}{Passed to \code{\link[base:source]{base::source()}}.}
 
 \item{argv_str}{The command-line arguments made available to the script.}
 }
 \value{
-The value returned by \code{\link[base]{source}}, invisibly.
+The value returned by \code{\link[base:source]{base::source()}}, invisibly.
 }
 \description{
 Sources an R script while making command-line arguments available to it.
 This is convenient for running external R scripts with different
 command-line arguments from within an interactive R session.
+}
+\examples{
+f = tempfile(fileext = ".R")
+writeLines(c(
+    'library(argitect)',
+    'argitect("count=i", "Number of items.")',
+    'cat("count =", count, "\\\\n")'
+), f)
+source_script(f, argv_str = "--count 3")
+
 }

@@ -17,25 +17,41 @@
 #'
 #' @details
 #' The specification can be one of the following:
-#' \enumerate{
-#'   \item A two-column matrix: \code{(script path, description)}. The command
-#'         name is the basename of the script path without its extension.
-#'   \item A three-column matrix: \code{(command, script path, description)}.
-#'   \item A vector with length a multiple of 2:
-#'         \code{(script path, description, ...)}.
-#'   \item A vector with length a multiple of 3:
-#'         \code{(command, script path, description, ...)}.
-#'   \item A single string template where commands are marked by the template
-#'         tag (default \code{<CODE>}).
-#' }
+#'
+#' 1. A two-column matrix: `(script path, description)`. The command name is
+#'    the basename of the script path without its extension.
+#' 2. A three-column matrix: `(command, script path, description)`.
+#' 3. A vector with length a multiple of 2: `(script path, description, ...)`.
+#' 4. A vector with length a multiple of 3:
+#'    `(command, script path, description, ...)`.
+#' 5. A single string template where commands are marked by the template tag
+#'    (default `<CODE>`).
 #'
 #' Commands can be grouped into sections by a separator line, e.g.
-#' \code{"----", "----", "This is a section"}.
+#' `"----", "----", "This is a section"`.
 #'
-#' @return Invisible \code{NULL}.
+#' @return Invisible `NULL`.
+#'
+#' @examples
+#' d = tempfile("argitect_sub_")
+#' dir.create(d)
+#' writeLines(c(
+#'     'library(argitect)',
+#'     'argitect("x=i", "X.")',
+#'     'cat("x =", x, "\\n")'
+#' ), file.path(d, "cmd1.R"))
+#' writeLines(c(
+#'     'library(argitect)',
+#'     'argitect("y=s", "Y.")',
+#'     'cat("y =", y, "\\n")'
+#' ), file.path(d, "cmd2.R"))
+#' sub_commands(
+#'     file.path(d, "cmd1.R"), "First command",
+#'     file.path(d, "cmd2.R"), "Second command",
+#'     argv_str = "cmd1 --x 5")
 #'
 #' @export
-subCommands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL) {
+sub_commands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL) {
 
     IS_UNDER_COMMAND_LINE = !is.null(get_scriptname())
 
@@ -57,9 +73,20 @@ subCommands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL)
         if(length(ARGV) == 1 && ARGV[1] == "") ARGV = character(0)
     }
 
-    if(length(ARGV) == 0) {
+    # --help (same as giving no argument) and --version are supported on the
+    # parent script level
+    if(length(ARGV) == 0 || ARGV[1] %in% c("--help", "-h")) {
         print_help_msg_sub_commands(spec_info, file = stdout(), script_name = script_name,
             head = help_head, foot = help_foot)
+        if(IS_UNDER_COMMAND_LINE) {
+            q(save = "no", status = 0)
+        } else {
+            return(invisible(NULL))
+        }
+    }
+
+    if(ARGV[1] %in% c("--version", "-v")) {
+        print_version_msg(parent.frame(), file = stdout())
         if(IS_UNDER_COMMAND_LINE) {
             q(save = "no", status = 0)
         } else {
@@ -72,33 +99,48 @@ subCommands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL)
 
     if(grepl("^-", cmd)) {
         if(IS_UNDER_COMMAND_LINE) {
-            cat(red(paste0("Error: a command should be specified.\n")), file = OUT)
+            cat(bold(red(paste0("Error: a command should be specified.\n"))), file = OUT)
             print_help_msg_sub_commands(spec_info, file = OUT, script_name = script_name,
                 head = help_head, foot = help_foot)
             q(save = "no", status = 127)
         } else {
-            stop_wrap("Error: a command should be specified.")
+            stop_wrap("a command should be specified.")
         }
     }
 
     if(!cmd %in% spec_info$all_commands) {
         if(IS_UNDER_COMMAND_LINE) {
-            cat(red(paste0("Error: wrong command: ", cmd, ".\n")), file = OUT)
+            cat(bold(red(paste0("Error: wrong command: ", cmd, ".\n"))), file = OUT)
             print_help_msg_sub_commands(spec_info, file = OUT, script_name = script_name,
                 head = help_head, foot = help_foot)
             q(save = "no", status = 127)
         } else {
-            stop_wrap("Error: wrong command: ", cmd, ".")
+            stop_wrap("wrong command: ", cmd, ".")
         }
     }
 
     script = spec_info$spec[spec_info$spec[, 1] == cmd, 2]
+    if(!all(file.exists(script))) {
+        stop_wrap("Script '", script[which(!file.exists(script))[1]],
+                  "' for command '", cmd, "' does not exist.")
+    }
     argitect.options("__prefix__" = paste0("Rscript ", script_name, " ", cmd))
     on.exit(argitect.options("__prefix__" = NULL))
 
     source_script(script, argv_str = ARGV_string)
 }
 
+
+# error about script paths in the specification that do not exist
+check_missing_scripts = function(spec) {
+    l_group = grepl("^[-=+#%]*$", spec[, 1])
+    scripts = spec[!l_group, 2]
+    missing = scripts[!file.exists(scripts)]
+    if(length(missing)) {
+        stop_wrap("Script path(s) do not exist: ", paste(missing, collapse = ", "), ".")
+    }
+    invisible(NULL)
+}
 
 parse_sub_commands_spec = function(spec_list) {
     if(length(spec_list) == 1) {
@@ -131,6 +173,8 @@ parse_sub_commands_spec = function(spec_list) {
         if(length(spec) == 1) {
             template = spec
             template = sub("^\\n", "", template)
+            # evaluate "{{ ... }}" chunks before the template is parsed
+            template = render_desc(template, .envir = glue_env())
             code = find_code(argitect.options("template_tag"), template)$code
             lt = strsplit(code, "=", fixed = TRUE)
             lt = lapply(lt, function(x) {
@@ -139,46 +183,63 @@ parse_sub_commands_spec = function(spec_list) {
             spec = do.call(rbind, lt)
             spec = cbind(spec, description = rep("", nrow(spec)))
             colnames(spec) = c("command", "script", "description")
+            check_missing_scripts(spec)
 
         } else if(length(spec) %% 6 == 0) {
             # ambiguous between (script, desc) pairs and (command, script, desc) triples
             l = seq_along(spec) %% 2 == 1
             spec2 = cbind(command = gsub("\\.[^.]*$", "", basename(spec[l])),
                           script = spec[l], description = spec[!l])
-            l_group = grepl("^[-=+#%]*$", spec2[, 1])
-            if(all(file.exists(spec2[!l_group, 2]))) {
-                spec = spec2
-            } else {
-                spec3 = cbind(
-                    command = spec[seq_along(spec) %% 3 == 1],
-                    script = spec[seq_along(spec) %% 3 == 2],
-                    description = spec[seq_along(spec) %% 3 == 0])
-                l_group = grepl("^[-=+#%]*$", spec3[, 1])
-                if(all(file.exists(spec3[!l_group, 2]))) {
-                    spec = spec3
-                } else {
-                    stop_wrap("Cannot determine whether the specification is (script, description) pairs or (command, script, description) triples.")
-                }
+            spec3 = cbind(
+                command = spec[seq_along(spec) %% 3 == 1],
+                script = spec[seq_along(spec) %% 3 == 2],
+                description = spec[seq_along(spec) %% 3 == 0])
+
+            # a section marker in the triple form is "(----, ----, title)", i.e.
+            # two consecutive separator elements; this is a strong structural hint
+            l_sep = grepl("^[-=+#%]*$", spec)
+            has_double_sep = length(spec) > 1 && any(l_sep[-length(spec)] & l_sep[-1])
+
+            # score each layout: script paths should look like R scripts and
+            # exist; sub-command names are short alphanumeric words (a real
+            # command name is unlikely to contain spaces or punctuation)
+            score_layout = function(sp) {
+                l_group = grepl("^[-=+#%]*$", sp[, 1])
+                cmd = sp[!l_group, 1]
+                scr = sp[!l_group, 2]
+                if(length(scr) == 0) return(0)
+                score = 0
+                if(all(grepl("\\.R$", scr, ignore.case = TRUE))) score = score + 10
+                if(all(file.exists(scr))) score = score + 5
+                if(all(grepl("^[A-Za-z0-9._-]+$", cmd))) score = score + 4
+                score
             }
+
+            score2 = score_layout(spec2)
+            score3 = score_layout(spec3)
+            if(has_double_sep) score3 = score3 + 2
+
+            if(score3 > score2) {
+                spec = spec3
+            } else {
+                spec = spec2
+            }
+
+            # once the layout is fixed, verify that its scripts exist
+            check_missing_scripts(spec)
 
         } else if(length(spec) %% 2 == 0) {
             l = seq_along(spec) %% 2 == 1
             spec = cbind(command = gsub("\\.[^.]*$", "", basename(spec[l])),
                          script = spec[l], description = spec[!l])
-            l_group = grepl("^[-=+#%]*$", spec[, 1])
-            if(!all(file.exists(spec[!l_group, 2]))) {
-                stop_wrap("The specification is set as a vector. Elements with odd indices should be paths of the scripts.")
-            }
+            check_missing_scripts(spec)
 
         } else if(length(spec) %% 3 == 0) {
             spec = cbind(
                 command = spec[seq_along(spec) %% 3 == 1],
                 script = spec[seq_along(spec) %% 3 == 2],
                 description = spec[seq_along(spec) %% 3 == 0])
-            l_group = grepl("^[-=+#%]*$", spec[, 1])
-            if(!all(file.exists(spec[!l_group, 2]))) {
-                stop_wrap("The specification is set as a vector. Elements with indices 2, 5, 8, ... should be paths of the scripts.")
-            }
+            check_missing_scripts(spec)
 
         } else {
             stop_wrap("The specification is set as a vector. Its length must be a multiple of 2 or 3, or it is a template.")
@@ -242,13 +303,13 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
             cat("\n\n", file = file)
         }
 
-        cat(paste0("Usage: Rscript ", script_name, " [command] [options]\n"), file = file)
+        cat(bold(paste0("Usage: Rscript ", script_name, " [command] [options]\n")), file = file)
         cat("\n", file = file)
 
         for(ig in seq_along(opt_group)) {
             ind = opt_group[[ig]]
             if(!grepl("^\\s*$", opt_group_desc[ig])) {
-                cat(format_text(opt_group_desc[ig], prefix = NULL), file = file)
+                cat(bold(format_text(opt_group_desc[ig], prefix = NULL)), file = file)
                 cat("\n", file = file)
             }
 
@@ -291,42 +352,56 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
         }
         lines = lines2
 
-        lt_parsed = lapply(lines, function(x) {
-            res = find_code(argitect.options("template_tag"), x)
-            code = res$code
-            code = strsplit(code, "=", fixed = TRUE)
-            res$cmd = vapply(code, function(s) {
-                if(length(s) == 1) gsub("\\.[^.]*$", "", s) else s[1]
-            }, character(1))
-            res
-        })
+        # evaluate "{{ ... }}" chunks (e.g. {{ cli_h2("Section") }}) in the template
+        lines = render_desc(lines, .envir = glue_env())
 
-        all_cmd = unique(unlist(lapply(lt_parsed, function(x) x$cmd)))
-        max_cmd_width = max(nchar(all_cmd))
+        tag = argitect.options("template_tag")
+        n_line = length(lines)
 
-        for(i in seq_along(lines)) {
-            lt = lt_parsed[[i]]
-            if(length(lt$template) == 0) {
-                cat(paste(lines[i], collapse = "\n"), "\n", file = file)
+        # first tag on each line, and the command name it stands for
+        line_cmd = rep(NA_character_, n_line)
+        line_tmp = rep(NA_character_, n_line)
+        for(i in seq_len(n_line)) {
+            lt = find_code(tag, lines[i])
+            if(length(lt$template) == 0) next
+            x = strsplit(lt$code[1], "=", fixed = TRUE)[[1]]
+            line_cmd[i] = if(length(x) == 1) gsub("\\.[^.]*$", "", x) else x[1]
+            line_tmp[i] = lt$template[1]
+        }
+
+        # group lines into sections separated by blank lines
+        section = integer(n_line)
+        sec = 0L
+        for(i in seq_len(n_line)) {
+            if(i > 1 && grepl("^\\s*$", lines[i - 1])) sec = sec + 1L
+            section[i] = sec
+        }
+
+        # a section shares one width: the widest command in it
+        sec_width = tapply(nchar(line_cmd[!is.na(line_cmd)]),
+                           section[!is.na(line_cmd)], max)
+
+        for(i in seq_len(n_line)) {
+            if(is.na(line_cmd[i])) {
+                cat(lines[i], "\n", file = file)
                 next
             }
+            s = as.character(section[i])
+            cmd_width = if(!is.na(sec_width[s])) sec_width[s] else nchar(line_cmd[i])
+            prefix = strrep(" ", cmd_width + 6)
 
-            prefix = strrep(" ", max_cmd_width + 6)
-            for(j in seq_along(lt$template)) {
-                cmd = lt$cmd[j]
-                desc = gsub(lt$template[[j]], "", lines[[i]], fixed = TRUE)
-                desc = gsub("^\\s+", "", desc)
+            desc = gsub(line_tmp[i], "", lines[[i]], fixed = TRUE)
+            desc = gsub("^\\s+", "", desc)
 
-                cmd2 = paste0("  ", cmd, strrep(" ", max_cmd_width - nchar(cmd)))
-                cat(cmd2, "    ", file = file, sep = "")
+            cmd2 = paste0("  ", line_cmd[i], strrep(" ", max(0, cmd_width - nchar(line_cmd[i]))))
+            cat(cmd2, "    ", file = file, sep = "")
 
-                desc = strwrap(desc, width = max(10, 0.9 * argitect.options("help_width") - max_cmd_width - 6))
-                if(length(desc) > 1) {
-                    desc[-1] = paste0(prefix, desc[-1])
-                }
-                cat(paste(desc, collapse = "\n"), file = file)
-                cat("\n", file = file)
+            desc = strwrap(desc, width = max(10, 0.9 * argitect.options("help_width") - cmd_width - 6))
+            if(length(desc) > 1) {
+                desc[-1] = paste0(prefix, desc[-1])
             }
+            cat(paste(desc, collapse = "\n"), file = file)
+            cat("\n", file = file)
         }
     }
 }

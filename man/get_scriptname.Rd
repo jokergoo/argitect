@@ -7,9 +7,14 @@
 get_scriptname()
 }
 \value{
-A character string, or \code{NULL} if the R script is not run from
-  the command line.
+A character string, or \code{NULL} if the R script is not run from the
+command line.
 }
 \description{
 Returns the file name of the currently running R script.
+}
+\examples{
+# NULL when the script is not run from the command line
+get_scriptname()
+
 }

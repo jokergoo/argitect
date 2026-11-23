@@ -2,9 +2,18 @@
 % Please edit documentation in R/0_global.R
 \name{argitect.options}
 \alias{argitect.options}
+\alias{argitect_options}
 \title{Get or set global options for \code{argitect()}}
 \usage{
 argitect.options(
+  ...,
+  RESET = FALSE,
+  READ.ONLY = NULL,
+  LOCAL = FALSE,
+  ADD = FALSE
+)
+
+argitect_options(
   ...,
   RESET = FALSE,
   READ.ONLY = NULL,
@@ -17,36 +26,57 @@ argitect.options(
 
 \item{RESET}{Whether to reset all options to their default values.}
 
-\item{READ.ONLY}{Passed to \code{GlobalOptions::setGlobalOptions}.}
+\item{READ.ONLY}{Passed to \code{\link[GlobalOptions:setGlobalOptions]{GlobalOptions::setGlobalOptions()}}.}
 
-\item{LOCAL}{Passed to \code{GlobalOptions::setGlobalOptions}.}
+\item{LOCAL}{Passed to \code{\link[GlobalOptions:setGlobalOptions]{GlobalOptions::setGlobalOptions()}}.}
 
-\item{ADD}{Passed to \code{GlobalOptions::setGlobalOptions}.}
+\item{ADD}{Passed to \code{\link[GlobalOptions:setGlobalOptions]{GlobalOptions::setGlobalOptions()}}.}
 }
 \value{
 The current option value (when getting) or, invisibly, the full
-  option list (when setting).
+option list (when setting).
 }
 \description{
-Get or set global options used by \code{\link{argitect}}. This function is
-backed by \code{GlobalOptions::setGlobalOptions}, so options can be read and
-written with \code{argitect.options("name")},
-\code{argitect.options("name" = value)}, \code{argitect.options(name = value)}
-or \code{argitect.options$name}.
+Get or set global options used by \code{\link[=argitect]{argitect()}}. This function is backed by
+\code{\link[GlobalOptions:setGlobalOptions]{GlobalOptions::setGlobalOptions()}}, so options can be read and written with
+\code{argitect.options("name")}, \code{argitect.options("name" = value)},
+\code{argitect.options(name = value)} or \code{argitect.options$name}.
 }
 \details{
 Supported options:
 \itemize{
-  \item \code{config} Configuration of the parser, e.g. \code{"bundling"}
-        or \code{"no_bundling"}.
-  \item \code{template_tag} The tag identifying specifications in a
-        template, in the format \code{left_tag CODE right_tag} (default
-        \code{"<CODE>"}).
-  \item \code{help_style} The style of the help message:
-        \code{"one-column"} or \code{"two-column"}.
-  \item \code{help_width} The maximal width of the help message.
+\item \code{config} A character vector of parser configuration flags. The following
+values are recognized:
+\itemize{
+\item \code{"bundling"}: allow single-letter flags to be combined, so that
+\code{-abc} is the same as \code{-a -b -c} (this is the default behavior).
+\item \code{"no_bundling"}: disable bundling; \code{-abc} is then treated as a single
+(unknown) option named \code{abc}.
+\item \code{"ignore_case"}: match long option names case-insensitively, so that
+\code{--FOO} matches \code{--foo} (by default matching is case-sensitive).
+\item \code{"no_ignore_case"}: keep case-sensitive matching; if both
+\code{"ignore_case"} and \code{"no_ignore_case"} are given, the latter wins.
 }
 
-\code{argitect.options(...)} should be put before calling
-\code{\link{argitect}}.
+For example \code{argitect.options("config" = c("ignore_case", "no_bundling"))}.
+\item \code{template_tag} The tag identifying specifications in a template, in the
+format "\verb{left_tag CODE right_tag}" (default \code{"<CODE>"}).
+\item \code{help_style} The style of the help message: \code{"one-column"} or
+\code{"two-column"}.
+\item \code{help_width} The maximal width of the help message.
+\item \code{value_sep} The separator used to split multiple values inside a single
+\code{name=value} pair for a vector sub-argument. The default \code{"auto"}
+automatically detects the separator among \code{","}, \code{";"}, \code{":"}, \code{"|"} and
+\code{"/"} by picking the one that satisfies the type and count constraints.
+}
+
+\code{argitect.options(...)} should be put before calling \code{\link[=argitect]{argitect()}}.
+}
+\examples{
+argitect.options("help_width")
+old = argitect.options("help_width")
+argitect.options("help_width" = 100)
+argitect.options("help_width")
+argitect.options("help_width" = old)
+
 }
