@@ -369,9 +369,13 @@ test_that("type suffix shows fixed keys and count ranges", {
     expect_identical(opt_line("arg=i%"),
         "  --arg, -a {name=integer, ...}")
 
-    # named vector
+    # named vector (square brackets)
     expect_identical(opt_line("arg=i@{foo, bar}"),
-        "  --arg, -a {foo=integer, bar=integer}")
+        "  --arg, -a [foo=integer, bar=integer]")
+
+    # named positional (square brackets)
+    expect_identical(opt_line("arg=i#{foo, bar}", "1 2 --help"),
+        "  <arg> [foo=integer, bar=integer]")
 
     # count ranges on arrays
     expect_identical(opt_line("arg=i@{2,3}"), "  --arg, -a [integer, 2-3]")
@@ -519,4 +523,167 @@ test_that("argitect template evaluates glue before parsing tags", {
     expect_true(any(grepl("^  --count, -c integer", out)))
     expect_true(any(grepl("^  --verbose, --no-verbose", out)))
     expect_false(any(grepl("\\{\\{", out)))
+})
+
+
+test_that("template continuation is detected by leading spaces", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+
+    # more than 4 leading spaces joins the current paragraph
+    out = strip_trailing(capture.output(argitect("
+Usage: Rscript foo.R [options]
+
+Options:
+  <count=i> This is a count.
+     This is a 5-space continuation.
+", envir = new.env(), argv_str = "--help")))
+    expect_true(any(grepl("This is a count. This is a 5-space continuation", out)))
+
+    # 4 leading spaces stays a separate line
+    out = strip_trailing(capture.output(argitect("
+Usage: Rscript foo.R [options]
+
+Options:
+  <count=i> This is a count.
+    This is a 4-space line.
+", envir = new.env(), argv_str = "--help")))
+    expect_false(any(grepl("This is a count. This is a 4-space line", out)))
+    expect_true(any(grepl("This is a 4-space line", out)))
+})
+
+
+test_that("glue interpolation can use variables from the calling frame", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+
+    f = function() {
+        myvar = "hello-local-template"
+        strip_trailing(capture.output(argitect(paste0(
+            "Usage: Rscript foo.R [options]\n\n",
+            "  <x=s> Value is {{ myvar }}.\n"), argv_str = "--help")))
+    }
+    expect_true(any(grepl("hello-local-template", f())))
+
+    g = function() {
+        myvar = "hello-local-description"
+        e = new.env()
+        strip_trailing(capture.output(argitect("x=s",
+            "Value is {{ myvar }}.", envir = e, argv_str = "--help")))
+    }
+    expect_true(any(grepl("hello-local-description", g())))
+})
+
+
+test_that("fixed-key vectors and positionals use square brackets in the help", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+
+    out = strip_trailing(capture.output(argitect("foo=i@{a,b}", "", envir = new.env(),
+        argv_str = "--help")))
+    expect_true(any(grepl("\\[a=integer, b=integer\\]", out)))
+
+    out = strip_trailing(capture.output(argitect("foo=i#{a,b}", "", envir = new.env(),
+        argv_str = "--help")))
+    expect_true(any(grepl("\\[a=integer, b=integer\\]", out)))
+
+    # hashes keep curly braces
+    out = strip_trailing(capture.output(argitect("foo=i%{a,b}", "", envir = new.env(),
+        argv_str = "--help")))
+    expect_true(any(grepl("\\{a=integer, b=integer\\}", out)))
+})
+
+
+test_that("long option name lists are wrapped and aligned", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
+
+    aliases = "number|a|b|c|d|e|f|g|h|k|l|m|n|p|q|r|t|u|w|x|y|z=i"
+    argitect_options("help_width" = 60)
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help")))
+
+    # the first line ends with a comma, the continuation aligns with "-a"
+    first = grep("^  --number, ", out, value = TRUE)
+    expect_true(length(first) == 1)
+    expect_true(grepl(",$", first))
+    cont = grep("^            -", out, value = TRUE)
+    expect_true(length(cont) >= 1)
+
+    # every line fits the requested width
+    expect_true(all(nchar(out) <= 60))
+})
+
+test_that("two-column help_width controls the first column width", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
+
+    aliases = "number|a|b|c|d|e|f|g|h|k|l|m|n|p|q|r|t|u|w|x|y|z=i"
+    argitect_options(help_style = "two-column", help_width = c(90, 40))
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help")))
+
+    # the option names wrap at the first-column width
+    expect_true(any(grepl("^  --number, -a", out)))
+    expect_true(any(grepl("^            -", out)))
+    # the description is placed after the first column
+    desc = grep("N\\.", out, value = TRUE)
+    expect_true(length(desc) >= 1)
+    expect_true(all(nchar(desc) <= 90))
+})
+
+
+test_that("help_width is controlled by the global option", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
+
+    aliases = "number|a|b|c|d|e|f|g|h|k|l|m|n=i"
+
+    argitect_options("help_width" = 50)
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help")))
+    expect_true(all(nchar(out) <= 50))
+    expect_true(any(grepl("^            -", out)))
+
+    argitect_options("help_width" = 100)
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help")))
+    expect_true(any(grepl("--number, -a, .*, -n integer", out)))
+})
+
+
+test_that("plain template lines are wrapped to the help width", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+
+    out = strip_trailing(capture.output(argitect("
+Usage: Rscript foo.R [options]
+
+  <count=i@{2,}>
+  This is a count. This is a count. This is a count.
+         This is a count. This is a count foduo  ofoaoauouf faoufo faouf .
+", envir = new.env(), argv_str = "--help")))
+
+    expect_true(all(nchar(out) <= 90))
+    # the long paragraph is split into several lines
+    expect_true(any(grepl("This is a count", out)))
+    expect_true(any(grepl("foduo", out)))
+    expect_false(any(grepl("foduo", grep("This is a count", out, value = TRUE))))
+    # the leading indentation is preserved
+    expect_true(all(grepl("^  ", grep("This is a count|foduo", out, value = TRUE))))
+})
+
+
+test_that("help_width can be set per call and overrides the global option", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
+
+    aliases = "number|a|b|c|d|e|f|g|h|k|l|m|n=i"
+
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help", help_width = 50)))
+    expect_true(all(nchar(out) <= 50))
+    expect_true(any(grepl("^            -", out)))
+
+    # a per-call value wins over the global option
+    argitect_options("help_width" = 60)
+    out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
+        argv_str = "--help", help_width = 100)))
+    expect_true(any(grepl("--number, -a, .*, -n integer", out)))
 })

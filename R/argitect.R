@@ -23,6 +23,9 @@
 #'   `list(opt_width = 21)`.
 #' @param help_style The style of the help message: `"one-column"` or
 #'   `"two-column"`.
+#' @param help_width The width of the help message. A vector of one or two
+#'   numbers; the second number is only used by the two-column style. Defaults
+#'   to `argitect_options("help_width")`.
 #' @param explain If `TRUE`, print an explanation of each argument
 #'   specification (its format and simple examples) and return without
 #'   parsing any command-line arguments.
@@ -37,14 +40,14 @@
 #' character, `l` logical) and an optional *type* (`$`
 #' scalar, `#` positional, `@` vector, `%` hash), optionally followed by a
 #' bracketed range or sub-argument list. The `i` mode also accepts extended
-#' integer notation: `0x`/`0X` hexadecimal, `0b`/`0B` binary, `0`-prefixed
+#' integer notation: `0x`/`0X` hexadecimal, `0b`/`0B` binary, `0`/`0o`/`0O`
 #' octal (e.g. `0123`), and decimal.
 #'
 #' - `"number=i"`: a single integer scalar.
 #' - `"name=s"`: a single character scalar.
 #' - `"length|size=i"`: an integer scalar with two names.
 #' - `"tag=i@"`: an integer vector.
-#' - `"tag=i{2,}"`: an integer vector with at least two elements.
+#' - `"tag=i@{2,}"`: an integer vector with at least two elements.
 #' - `"param=s%"`: name=value pairs with character values.
 #' - `"input=s#"`: one positional argument.
 #' - `"files=s#{}"`: one or more positional arguments.
@@ -67,11 +70,22 @@
 #'
 #' @export
 argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.frame(),
-    argv_str = NULL, template_control = list(),
-    help_style = argitect.options("help_style"), explain = FALSE,
-    value_sep = argitect.options("value_sep")) {
+    argv_str = NULL, explain = FALSE, template_control = list(), 
+    help_style = argitect_options("help_style"),
+    help_width = argitect_options("help_width"), 
+    value_sep = argitect_options("value_sep")) {
 
     if(is.list(envir)) envir = as.environment(envir)
+
+    # make local variables of the calling frame visible to "{{ ... }}"
+    old_glue_envir = .argitect_ctx$glue_envir
+    .argitect_ctx$glue_envir = parent.frame()
+    on.exit({ .argitect_ctx$glue_envir = old_glue_envir }, add = TRUE)
+
+    # per-call help width; the global default comes from argitect_options
+    old_help_width = .argitect_ctx$help_width
+    .argitect_ctx$help_width = help_width
+    on.exit({ .argitect_ctx$help_width = old_help_width }, add = TRUE)
 
     if(is.null(get_scriptname())) {
         IS_UNDER_COMMAND_LINE = FALSE
@@ -80,7 +94,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     }
 
     if(is.null(argv_str)) {
-        argv_str = argitect.options("__argv_str__")
+        argv_str = argitect_options("__argv_str__")
     }
 
     spec_info = parse_specification(list(...))
@@ -171,7 +185,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
         if(length(argv) == 1 && argv[1] == "") argv = character(0)
     }
 
-    config = argitect.options("config")
+    config = argitect_options("config")
 
     err = NULL
     tryCatch({
@@ -181,7 +195,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     })
 
     if(!is.null(err)) {
-        if(IS_UNDER_COMMAND_LINE) {
+        if(IS_UNDER_COMMAND_LINE && is.null(argitect_options("__script_name__"))) {
             cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
             print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
                 template = spec_info$template, template_control = template_control,
@@ -199,11 +213,11 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
             template = spec_info$template, template_control = template_control,
             style = help_style, opt_group = spec_info$opt_group,
             opt_group_desc = spec_info$opt_group_desc)
-        if(IS_UNDER_COMMAND_LINE) {
-            q(save = "no", status = 0)
-        } else if(!is.null(argitect.options("__script_name__"))) {
+        if(!is.null(argitect_options("__script_name__"))) {
             # inside source_script(): stop the sourced script quietly
             stop_script()
+        } else if(IS_UNDER_COMMAND_LINE) {
+            q(save = "no", status = 0)
         } else {
             return(invisible(NULL))
         }
@@ -212,10 +226,10 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     # --version
     if(isTRUE(arguments$version$value)) {
         print_version_msg(envir, file = stdout())
-        if(IS_UNDER_COMMAND_LINE) {
-            q(save = "no", status = 0)
-        } else if(!is.null(argitect.options("__script_name__"))) {
+        if(!is.null(argitect_options("__script_name__"))) {
             stop_script()
+        } else if(IS_UNDER_COMMAND_LINE) {
+            q(save = "no", status = 0)
         } else {
             return(invisible(NULL))
         }
@@ -334,7 +348,7 @@ parse_specification = function(spec_list) {
 }
 
 
-parse_spec_template = function(template, tag = argitect.options("template_tag")) {
+parse_spec_template = function(template, tag = argitect_options("template_tag")) {
     lt = find_code(tag, template)
     code = lt$code
     spec = cbind(code, rep("", length(code)))
@@ -801,6 +815,14 @@ parse_argv = function(arguments, argv, config = NULL, value_sep = ",") {
             break
         }
 
+        # a single "-" is a normal value (commonly used to mean standard
+        # input); it is never parsed as an option name
+        if(identical(tok, "-")) {
+            positional = c(positional, tok)
+            i = i + 1
+            next
+        }
+
         if(grepl("^--", tok)) {
             body = substr(tok, 3, nchar(tok))
             eq = regexpr("=", body, fixed = TRUE)[1]
@@ -877,6 +899,9 @@ parse_argv = function(arguments, argv, config = NULL, value_sep = ",") {
 
 # assign leftover positional tokens to "#" arguments in declaration order
 assign_positional = function(arguments, positional) {
+    # --help / --version should work even when required positionals are absent
+    if(isTRUE(arguments$help$value) || isTRUE(arguments$version$value)) return(invisible(NULL))
+
     idxs = which(vapply(arguments, function(a) identical(a$spec_value$arg_type, "#"), logical(1)))
     np = length(positional)
 
@@ -892,8 +917,25 @@ assign_positional = function(arguments, positional) {
     for(j in seq_along(idxs)) {
         a = arguments[[idxs[j]]]
         rng = a$spec_value$arg_range
-        if(is.character(rng)) { mn = 1L; mx = 1L }
-        else { mn = rng[1]; mx = rng[2] }
+
+        # a fixed key set: take exactly one positional token per key and build
+        # a named vector, just like "i@{a, b}" but filled from positional tokens
+        if(is.character(rng)) {
+            nk = length(rng)
+            remaining = np - k + 1L
+            if(remaining == 0) next   # no token: use the default / mandatory check
+            if(remaining < nk) {
+                stop_wrap("Insufficient positional arguments for '", a$arg_name[1], "'.")
+            }
+            cv = convert_value(positional[k:(k + nk - 1)], a$spec_value$arg_mode,
+                               name = a$arg_name[1])
+            names(cv) = rng
+            a$value = cv
+            k = k + nk
+            next
+        }
+
+        mn = rng[1]; mx = rng[2]
 
         remaining = np - k + 1L
         last = (j == length(idxs))
@@ -957,7 +999,7 @@ check_default_format = function(a) {
         return(invisible(NULL))
     }
 
-    if(type == "@" && is.character(sv$arg_range)) {
+    if(type %in% c("@", "#") && is.character(sv$arg_range)) {
         # fixed-key named vector
         if(!(is.atomic(d) && is.vector(d))) {
             stop_wrap("The default of '", a$arg_name[1], "' should be an atomic vector.")

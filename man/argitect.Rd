@@ -10,10 +10,11 @@ argitect(
   help_foot = NULL,
   envir = parent.frame(),
   argv_str = NULL,
-  template_control = list(),
-  help_style = argitect.options("help_style"),
   explain = FALSE,
-  value_sep = argitect.options("value_sep")
+  template_control = list(),
+  help_style = argitect_options("help_style"),
+  help_width = argitect_options("help_width"),
+  value_sep = argitect_options("value_sep")
 )
 }
 \arguments{
@@ -32,15 +33,19 @@ environment.}
 \item{argv_str}{A string containing command-line arguments. Only for
 testing purposes.}
 
+\item{explain}{If \code{TRUE}, print an explanation of each argument
+specification (its format and simple examples) and return without
+parsing any command-line arguments.}
+
 \item{template_control}{A list controlling template help rendering, e.g.
 \code{list(opt_width = 21)}.}
 
 \item{help_style}{The style of the help message: \code{"one-column"} or
 \code{"two-column"}.}
 
-\item{explain}{If \code{TRUE}, print an explanation of each argument
-specification (its format and simple examples) and return without
-parsing any command-line arguments.}
+\item{help_width}{The width of the help message. A vector of one or two
+numbers; the second number is only used by the two-column style. Defaults
+to \code{argitect_options("help_width")}.}
 
 \item{value_sep}{The separator used to split multiple values inside a
 single \code{name=value} pair for a vector sub-argument. The default \code{"auto"}
@@ -63,14 +68,14 @@ Each argument specification is \verb{name[|alias...]=spec}. The value part
 character, \code{l} logical) and an optional \emph{type} (\code{$}
 scalar, \verb{#} positional, \code{@} vector, \verb{\%} hash), optionally followed by a
 bracketed range or sub-argument list. The \code{i} mode also accepts extended
-integer notation: \verb{0x}/\verb{0X} hexadecimal, \verb{0b}/\verb{0B} binary, \code{0}-prefixed
+integer notation: \verb{0x}/\verb{0X} hexadecimal, \verb{0b}/\verb{0B} binary, \code{0}/\verb{0o}/\verb{0O}
 octal (e.g. \code{0123}), and decimal.
 \itemize{
 \item \code{"number=i"}: a single integer scalar.
 \item \code{"name=s"}: a single character scalar.
 \item \code{"length|size=i"}: an integer scalar with two names.
 \item \code{"tag=i@"}: an integer vector.
-\item \code{"tag=i{2,}"}: an integer vector with at least two elements.
+\item \code{"tag=i@{2,}"}: an integer vector with at least two elements.
 \item \code{"param=s\%"}: name=value pairs with character values.
 \item \code{"input=s#"}: one positional argument.
 \item \code{"files=s#{}"}: one or more positional arguments.

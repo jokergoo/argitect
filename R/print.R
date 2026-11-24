@@ -83,17 +83,18 @@ sub_type_str = function(sub, parent_mode, mode_fun = mode_label) {
 # wide, on several aligned lines (one key per line, aligned after the "{");
 # the trailing "..." (open set) is treated as one more entry and may get its
 # own line as well
-render_fixed_suffix = function(parts, open, base = "", width = Inf) {
+render_fixed_suffix = function(parts, open, base = "", width = Inf,
+                               open_bracket = "{", close_bracket = "}") {
     if(isTRUE(open)) parts = c(parts, "...")
-    single = paste0(" {", paste(parts, collapse = ", "), "}")
+    single = paste0(" ", open_bracket, paste(parts, collapse = ", "), close_bracket)
     if(length(parts) <= 1 || nchar(single) <= width) return(single)
     n = length(parts)
     indent = strrep(" ", nchar(base) + 2)
     lines = character(n)
-    lines[1] = paste0(" {", parts[1], ",")
+    lines[1] = paste0(" ", open_bracket, parts[1], ",")
     if(n > 1) {
         for(i in 2:n) {
-            lines[i] = paste0(indent, parts[i], if(i < n) "," else "}")
+            lines[i] = paste0(indent, parts[i], if(i < n) "," else close_bracket)
         }
     }
     paste(lines, collapse = "\n")
@@ -116,7 +117,7 @@ template_opt_width = function(a, opt_str, template_control = NULL) {
 
 # the "--name, -n" part of a help line
 SingleArgument$methods(
-    opt_name_line = function() {
+    opt_name_line = function(width = Inf, prefix = "") {
         parts = character(0)
         for(nm in .self$arg_name) {
             if(nchar(nm) == 1) {
@@ -125,7 +126,26 @@ SingleArgument$methods(
                 parts = c(parts, paste0("--", gsub("_", "-", nm)))
             }
         }
-        paste(parts, collapse = ", ")
+        if(length(parts) <= 1 || !is.finite(width)) return(paste(parts, collapse = ", "))
+
+        # wrap the names; continuation lines align with the second name
+        align = nchar(prefix) + nchar(parts[1]) + 2
+        lines = character(0)
+        first = TRUE
+        cur = parts[1]
+        for(i in 2:length(parts)) {
+            candidate = paste0(cur, ", ", parts[i])
+            total = if(first) nchar(prefix) + nchar(candidate) else nchar(candidate)
+            if(total <= width) {
+                cur = candidate
+            } else {
+                lines = c(lines, paste0(cur, ","))
+                cur = paste0(strrep(" ", align), parts[i])
+                first = FALSE
+            }
+        }
+        lines = c(lines, cur)
+        paste(lines, collapse = "\n")
     }
 )
 
@@ -139,6 +159,10 @@ SingleArgument$methods(
 
         if(type == "#") {
             rng = sv$arg_range
+            if(is.character(rng)) {
+                parts = vapply(rng, function(k) paste0(k, "=", mode_label(mode)), character(1))
+                return(render_fixed_suffix(parts, isTRUE(attr(rng, "open")), base, width, "[", "]"))
+            }
             if(is.numeric(rng) && (rng[1] == 1 && rng[2] == 1)) {
                 return(paste0(" ", mode_label(mode)))
             }
@@ -156,7 +180,7 @@ SingleArgument$methods(
         if(type == "@" && is.character(sv$arg_range)) {
             keys = sv$arg_range
             parts = vapply(keys, function(k) paste0(k, "=", mode_label(mode)), character(1))
-            return(render_fixed_suffix(parts, isTRUE(attr(keys, "open")), base, width))
+            return(render_fixed_suffix(parts, isTRUE(attr(keys, "open")), base, width, "[", "]"))
         }
         if(type == "@") {
             return(paste0(" [", mode_label(mode), ", ", count_spec(sv$arg_range), "]"))
@@ -199,16 +223,20 @@ SingleArgument$methods(
 
 # one-column help block for a single argument
 SingleArgument$methods(
-    help_line = function(prefix = "  ", width = argitect.options("help_width"), which = c("opt_line", "desc_line")) {
+    help_line = function(prefix = "  ", width = help_widths()$total, which = c("opt_line", "desc_line")) {
         msg = ""
 
         if("opt_line" %in% which) {
             if(.self$spec_value$arg_type == "#") {
                 opt_line = paste0(prefix, "<", .self$arg_name[1], ">")
             } else {
-                opt_line = paste0(prefix, .self$opt_name_line())
+                # reserve room for the type suffix when wrapping the names
+                suffix0 = .self$type_suffix(base = "", width = 0.6 * width)
+                reserve = nchar(strsplit(suffix0, "\n")[[1]][1])
+                opt_line = paste0(prefix, .self$opt_name_line(
+                    width = if(is.finite(width)) width - reserve else Inf, prefix = prefix))
             }
-            opt_line = paste0(opt_line, .self$type_suffix(base = opt_line, width = 0.6 * width))
+            opt_line = paste0(opt_line, .self$type_suffix(base = sub("^.*\n", "", opt_line), width = 0.6 * width))
             msg = paste0(msg, opt_line, "\n")
         }
 
@@ -272,14 +300,23 @@ SingleArgument$methods(
 # two-column help line: returns opt_line only or the full aligned block
 SingleArgument$methods(
     help_line_two_columns = function(prefix = "  ", only_opt = FALSE, opt_width = NULL,
-        width = max(argitect.options("help_width"), opt_width + 60)) {
+        width = max(help_widths()$total, opt_width + 60), wrap_width = NULL) {
 
         if(.self$spec_value$arg_type == "#") {
             opt_line = paste0(prefix, "<", .self$arg_name[1], ">")
         } else {
-            opt_line = paste0(prefix, .self$opt_name_line())
+            if(is.null(opt_width)) {
+                nm = .self$opt_name_line()
+            } else {
+                ww = if(is.null(wrap_width)) opt_width else wrap_width
+                # reserve room for the type suffix when wrapping the names
+                suffix0 = .self$type_suffix(base = "", width = 0)
+                reserve = nchar(strsplit(suffix0, "\n")[[1]][1])
+                nm = .self$opt_name_line(width = max(10, ww - reserve), prefix = prefix)
+            }
+            opt_line = paste0(prefix, nm)
         }
-        opt_line = paste0(opt_line, .self$type_suffix(base = opt_line, width = 0))
+        opt_line = paste0(opt_line, .self$type_suffix(base = sub("^.*\n", "", opt_line), width = 0))
 
         if(only_opt) return(opt_line)
 
@@ -323,6 +360,8 @@ SingleArgument$methods(
 
         n1 = length(opt_line)
         n2 = length(desc_line)
+        # the description starts next to the FIRST option line; extra option
+        # lines (from wrapping) simply continue below it
         msg = character(max(n1, n2))
         for(i in seq_along(msg)) {
             if(i <= n1 && i <= n2) {
@@ -366,7 +405,10 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
         is_pos = vapply(arguments, function(a) identical(a$spec_value$arg_type, "#"), logical(1))
         pos_str = function(a) {
             rng = a$spec_value$arg_range
-            if(is.numeric(rng) && rng[1] == 1 && rng[2] == 1) {
+            if(is.character(rng)) {
+                # fixed key set: a fixed number of positional tokens
+                paste0("[", a$arg_name[1], "]")
+            } else if(is.numeric(rng) && rng[1] == 1 && rng[2] == 1) {
                 paste0("[", a$arg_name[1], "]")
             } else {
                 paste0("[", a$arg_name[1], "...]")
@@ -390,7 +432,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
             paste0(" ", paste(vapply(arguments[post_pos], pos_str, character(1)), collapse = " "))
         } else ""
 
-        prefix = argitect.options("__prefix__")
+        prefix = argitect_options("__prefix__")
         if(is.null(prefix)) {
             cat(bold(paste0("Usage: Rscript ", script_name, usage_pre, " [options]", usage_post, "\n")), file = file)
         } else {
@@ -427,9 +469,28 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
                     }
                 }
                 opt_width = max(nchar(opt_line))
+                hw = help_widths()
+                # the first column is at most `help_width[2]` when given,
+                # otherwise a fraction of the total width
+                limit = if(!is.null(hw$opt)) hw$opt else 0.6 * hw$total
+                wrap_width = max(10L, min(opt_width, limit))
+
+                # after wrapping, use the actual widest line as the first
+                # column so that the gap before the description stays small
+                opt_line = NULL
                 for(i in ind) {
                     if(i <= length(arguments)) {
-                        cat(arguments[[i]]$help_line_two_columns(opt_width = opt_width), "\n", file = file)
+                        ol = arguments[[i]]$help_line_two_columns(only_opt = TRUE,
+                            opt_width = wrap_width)
+                        opt_line = c(opt_line, strsplit(ol, "\n")[[1]])
+                    }
+                }
+                opt_width = max(nchar(opt_line))
+
+                for(i in ind) {
+                    if(i <= length(arguments)) {
+                        cat(arguments[[i]]$help_line_two_columns(opt_width = opt_width,
+                            wrap_width = wrap_width), "\n", file = file)
                     }
                 }
                 cat("\n", file = file)
@@ -449,7 +510,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
             if(i == 1) {
                 lines2[i] = lines[i]
             } else {
-                if(grepl("^\\s{6,}\\w", lines[i], perl = TRUE)) {
+                if(grepl("^\\s{5,}\\w", lines[i], perl = TRUE)) {
                     lines2[length(lines2)] = paste0(lines2[length(lines2)], " ",
                         gsub("^\\s+", "", lines[i]))
                 } else {
@@ -462,7 +523,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
         # evaluate "{{ ... }}" chunks (e.g. {{ cli_h2("Options") }}) in the template
         lines = render_desc(lines, .envir = glue_env())
 
-        tag = argitect.options("template_tag")
+        tag = argitect_options("template_tag")
         n_line = length(lines)
 
         # first tag on each line, and the matching argument index
@@ -517,7 +578,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
                 if(nzchar(desc)) {
                     prefix = strrep(" ", opt_width + 6)
                     desc = render_desc(desc)
-                    desc = strwrap(desc, width = max(10, 0.9 * argitect.options("help_width") - opt_width - 6))
+                    desc = strwrap(desc, width = max(10, 0.9 * help_widths()$total - opt_width - 6))
                     if(length(desc) > 1) desc[-1] = paste0(prefix, desc[-1])
                     cat(paste(desc, collapse = "\n"), file = file)
                 }
@@ -526,7 +587,17 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
             }
 
             if(is.na(line_arg[i])) {
-                cat(lines[i], "\n", file = file)
+                # plain template line: wrap it to the total help width while
+                # keeping its leading indentation
+                ln = lines[i]
+                indent = sub("^(\\s*).*$", "\\1", ln)
+                txt = sub("^\\s+", "", ln)
+                if(nzchar(txt) && nchar(indent) + nchar(txt) > help_widths()$total) {
+                    w = strwrap(txt, width = max(10, help_widths()$total - nchar(indent)))
+                    cat(paste0(indent, w, collapse = "\n"), "\n", file = file)
+                } else {
+                    cat(ln, "\n", file = file)
+                }
                 next
             }
 
@@ -550,7 +621,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
                 opt_str2 = paste0("  ", opt_str, strrep(" ", max(0, opt_width - nchar(opt_str))))
                 cat(opt_str2, "    ", file = file, sep = "")
 
-                desc = strwrap(desc, width = max(10, 0.9 * argitect.options("help_width") - opt_width - 6))
+                desc = strwrap(desc, width = max(10, 0.9 * help_widths()$total - opt_width - 6))
                 if(length(desc) > 1) {
                     desc[-1] = paste0(prefix, desc[-1])
                 }

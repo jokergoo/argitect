@@ -52,7 +52,7 @@ SingleArgument$methods(
         # single-letter flag: explicit one-letter alias, otherwise decided later
         i = which(nchar(obj$arg_name) == 1)
         if(length(i)) {
-            obj$flag = obj$arg_name[i]
+            obj$flag = obj$arg_name[i[1]]   # a single flag, not all one-letter aliases
         } else {
             obj$flag = ""
         }
@@ -122,12 +122,13 @@ convert_value = function(x, mode, name = NULL) {
         return(as.character(x))
     } else if(mode == "i") {
         # integer mode also accepts extended integer notation:
-        # 0x/0X hex, 0b/0B binary, 0[0-7]+ octal, otherwise decimal
+        # 0x/0X hex, 0b/0B binary, 0/0o/0O[0-7]+ octal, otherwise decimal
         y = vapply(x, function(z) {
             z = trimws(z)
             if(grepl("^0[xX][0-9a-fA-F]+$", z)) return(strtoi(substr(z, 3, nchar(z)), base = 16L))
             if(grepl("^0[bB][01]+$", z)) return(strtoi(substr(z, 3, nchar(z)), base = 2L))
             if(grepl("^0[0-7]+$", z)) return(strtoi(z, base = 8L))
+            if(grepl("^0[oO][0-7]+$", z)) return(strtoi(substr(z, 3, nchar(z)), base = 8L))
             if(grepl("^[+-]?[0-9]+$", z)) return(as.integer(z))
             NA_integer_
         }, integer(1), USE.NAMES = FALSE)
@@ -569,6 +570,16 @@ split_by_top_level_commas = function(x) {
 
 
 # parse one sub-argument of a hash, e.g. "foo=i@[2]" or "bar!"
+# a sub-argument of a hash cannot be a fixed-key named vector: its key is
+# already the hash key, so only a numeric count range is meaningful
+check_sub_range = function(res, spec) {
+    if(res$arg_type %in% c("@", "#") && is.character(res$arg_range)) {
+        stop_wrap("A fixed key set is not allowed for a sub-argument of a hash; ",
+                  "only a count range is allowed here. In: ", spec)
+    }
+    res
+}
+
 parse_sub_spec = function(s, spec) {
     s = gsub("\\s+", "", s)
     negatable = FALSE
@@ -613,6 +624,7 @@ parse_sub_spec = function(s, spec) {
         }
         res = parse_typed(substr(value_part, 2, nchar(value_part)), arg_mode = ch1,
                           spec = spec, allow_hash = FALSE)
+        res = check_sub_range(res, spec)
         res$negatable = negatable
         return(c(list(arg_name = arg_name), res))
     }
@@ -622,6 +634,7 @@ parse_sub_spec = function(s, spec) {
             stop_wrap("'%' (hash) is not allowed in sub-arguments. In: ", spec)
         }
         res = parse_typed(value_part, arg_mode = NA_character_, spec = spec, allow_hash = FALSE)
+        res = check_sub_range(res, spec)
         res$negatable = negatable
         return(c(list(arg_name = arg_name), res))
     }
@@ -631,8 +644,9 @@ parse_sub_spec = function(s, spec) {
         close = substr(value_part, nchar(value_part), nchar(value_part))
         if(BRACKET[[ch1]] != close) stop_wrap("Bracket is not closed in: ", spec)
         inner = substr(value_part, 2, nchar(value_part) - 1)
-        return(list(arg_name = arg_name, arg_mode = NA_character_, arg_type = "@",
-                    arg_range = parse_range(inner, "@", spec), negatable = negatable))
+        res = list(arg_name = arg_name, arg_mode = NA_character_, arg_type = "@",
+                   arg_range = parse_range(inner, "@", spec), negatable = negatable)
+        return(check_sub_range(res, spec))
     }
 
     stop_wrap("Wrong sub-argument specification: ", s)

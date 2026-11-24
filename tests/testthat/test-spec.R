@@ -295,12 +295,12 @@ test_that("vector sub-arguments accept comma-separated values", {
         value_sep = ";")
     expect_equal(e$arg$foo, c(1L, 2L, 3L))
 
-    # custom separator via argitect.options()
-    argitect.options("value_sep" = ";")
+    # custom separator via argitect_options()
+    argitect_options("value_sep" = ";")
     e = new.env()
     argitect("arg=%{foo=i@}", "A.", envir = e, argv_str = "--arg foo=1;2;3")
     expect_equal(e$arg$foo, c(1L, 2L, 3L))
-    argitect.options(RESET = TRUE)
+    argitect_options(RESET = TRUE)
 })
 
 
@@ -539,4 +539,19 @@ test_that("sub-argument documentation is validated against declared sub-argument
     expect_warning(capture.output(argitect("arg=i%", "A.",
         "arg$anything", "Any.",
         envir = new.env(), argv_str = "--help")), NA)
+})
+
+
+test_that("hash sub-arguments only accept count ranges, not fixed key sets", {
+    expect_silent(argitect:::SingleArgument("arg=%{foo=i@{2,3}}", "A."))
+    expect_silent(argitect:::SingleArgument("arg=%{foo=i#{2,3}}", "A."))
+    expect_silent(argitect:::SingleArgument("arg=%{foo=i@[2]}", "A."))
+
+    expect_error(argitect:::SingleArgument("arg=%{foo=i@{a,b}}", "A."), "fixed key set")
+    expect_error(argitect:::SingleArgument("arg=%{foo=i#{a,b}}", "A."), "fixed key set")
+    expect_error(argitect:::SingleArgument("arg=%{foo=@(a,b)}", "A."), "fixed key set")
+
+    # a fixed key set is still fine for a top-level vector
+    a = argitect:::SingleArgument("foo=i@{a,b}", "F.")
+    expect_equal(a$spec_value$arg_range, c("a", "b"))
 })

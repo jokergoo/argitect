@@ -1,0 +1,100 @@
+---
+title: "Reading from standard input"
+author: "Zuguang Gu (guzuguang@suat-sz.edu.cn)"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    fig_caption: true
+    toc: false
+vignette: >
+  %\VignetteIndexEntry{Reading from standard input}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, echo = FALSE, message = FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+    error = FALSE,
+    tidy  = FALSE,
+    message = FALSE,
+    warning = FALSE,
+    comment = NA,
+    fig.align = "center")
+library(argitect)
+
+options(cli.num_colors = 1)
+
+```
+
+------------------------------------------------------------------------
+
+
+Reading from standard input fromm upstream command is basically to support special flags.
+In the following example, the argument `input` expects a file or a flag representing standard input.
+
+```r
+library(argitect)
+argitect(
+    "input=s", "input"
+)
+
+if(input %in% c("-", "stdin")) {
+    cat(readLines(file("stdin")), sep = "\n")
+} else {
+    cat(readLines(input), sep = "\n")
+}
+```
+
+Then from command-line, standard input can be set via `-` or `stdin`:
+
+```
+~\> echo hello | Rscript pipe.R --input -
+~\> echo hello | Rscript pipe.R --input stdin
+```
+
+```{r, echo = FALSE}
+f = system.file("extdata", "pipe.R", package = "argitect")
+cat(system(paste0("echo hello | Rscript '", f, "' --input -"), intern = TRUE), sep = "\n")
+```
+
+`input` can also be set as a positional argument, then no argument name is
+needed to specify on the command-line.
+
+```r
+library(argitect)
+argitect(
+    "input=s#", "input"
+)
+
+if(input %in% c("-", "stdin")) {
+    cat(readLines(file("stdin")), sep = "\n")
+} else {
+    cat(readLines(input), sep = "\n")
+}
+```
+
+```
+~\> cat main.R | Rscript pipe.R -
+~\> cat main.R | Rscript pipe.R stdin
+```
+
+`main.R` is the script we used in vignette [Dispatching to sub-commands](sub_commands.html).
+
+```{r, echo = FALSE}
+f = system.file("extdata", "pipe2.R", package = "argitect")
+cat(system(paste0("cat main.R | Rscript '", f, "' stdin"), intern = TRUE), sep = "\n")
+```
+
+
+<script>
+var elements = document.getElementsByTagName("pre");
+for(var i = 0; i < elements.length; i ++ ) {
+    if(!elements[i].hasAttribute("class")) {
+        code = elements[i].children[0];
+        code.style.color = "white";
+        code.style.background = "rgb(38,38,38)";
+        elements[i].style.background = "hsl(70, 0%, 15%)";
+    }
+}
+</script>

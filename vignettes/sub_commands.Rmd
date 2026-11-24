@@ -1,0 +1,329 @@
+---
+title: "Dispatching to sub-commands"
+author: "Zuguang Gu (guzuguang@suat-sz.edu.cn)"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    fig_caption: true
+    toc: true
+    toc_depth: 3
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Dispatching to sub-commands}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, echo = FALSE, message = FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+    error = FALSE,
+    tidy  = FALSE,
+    warning = FALSE,
+    message = FALSE,
+    comment = NA,
+    fig.align = "center")
+library(argitect)
+
+options(cli.num_colors = 1)
+
+run_code = function(code_block, argv_str) {
+    chunks = knitr:::knit_code$get()
+    argitect_options("__argv_str__" = argv_str)
+    local({ 
+        for(cb in code_block)
+            eval(parse(text = chunks[[cb]])) 
+    })
+    argitect_options(RESET = TRUE)
+}
+```
+
+------------------------------------------------------------------------
+
+## A quick example
+
+When a script gets complicated, it might be better to split it into several
+sub-scripts where each is focused on a specific task. Here `sub_commands()` 
+supports to dispatch command-line options to sub-scripts.
+
+The following code gives you a quick example of how the sub commands are set.
+In the function `sub_commands()`, the name of the sub-command, the sub-script and the 
+description of the sub-command are organized as a 3-tuple.
+
+The following code is put in the script called `main.R` (parent script) which
+contains dispatches of sub-commands.
+
+```{r main, eval = FALSE}
+library(argitect)
+
+sub_commands(
+    "sub1", "sub1.R", "Description of sub command 1.",
+    "sub2", "sub2.R", "Description of sub command 2."
+)
+```
+
+Code in `sub1.R`:
+
+```{r sub1, eval = FALSE}
+library(argitect)
+
+argitect("foo=i", "Set value for foo.")
+
+cat("foo is ", foo, "\n")
+```
+
+And code in `sub2.R`:
+
+```{r sub2, eval = FALSE}
+library(argitect)
+
+argitect("bar=i", "Set value for bar")
+
+cat("bar is ", bar, "\n")
+```
+
+Calling `main.R` with no argument prints the list of sub-commands it supports.
+
+```
+~\> Rscript main.R
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("main", "")
+```
+
+When a sub-command is called, the corresponding R script is invoked. Here all
+command-line arguments after the sub command `sub1` go to the correspond R
+script `sub1.R`. Internally, it actually executes `Rscript sub1.R --help`.
+
+```
+~\> Rscript main.R sub1 --help
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("main", "sub1 --help")
+```
+
+Options in `sub1.R` can be directly set after the sub-command, which internally
+equivalent to `Rscript sub1.R --foo 10`.
+
+```
+~\> Rscript main.R sub1 --foo 10
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("main", "sub1 --foo 10")
+```
+
+A [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) line can be added to
+the first line of the parent R script, then `Rscript` is not necessary to be explicitely called.
+Also `.R` suffix of the parent script can be removed to pretend it is a linux utility program.
+
+```r
+#!/usr/bin/env Rscript
+library(argitect)
+
+sub_commands(
+    "sub1", "sub1.R", "This is sub-command 1.",
+    "sub2", "sub2.R", "This is sub-command 2."
+)
+```
+
+Make sure `main` is executable.
+
+```
+./main sub1 --foo 1
+```
+
+If the directory of script `main` is put into `PATH` and all sub-command
+scripts are accessible from `main`, then 
+
+```
+main sub1 --foo 1
+```
+
+
+## The specification
+
+Besides the 3-tuple specification demonstrated already, sub-commands can also
+be specified in 2-tuples, where the first element is the sub-script and the
+second element is the description of the sub-command. In this scenario, the basename
+of the sub-script removing `.R`/`.r` suffix is taken as the name of the sub-command.
+
+```{r, eval = FALSE}
+sub_commands(
+    "sub1.R", "This is sub-command 1.",
+    "sub2.R", "This is sub-command 2."
+)
+```
+
+With 3-tuple specification, names of the sub-commands can be self-defined.
+
+```{r 3-tuple, eval = FALSE}
+sub_commands(
+    "one", "sub1.R", "This is sub-command 1.",
+    "two", "sub2.R", "This is sub-command 2."
+)
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("3-tuple", "")
+```
+
+As all parameters are specified as a long vector in `sub_commands()`, whether
+it is a 3-tuple format or a 2-tuple format is automatically determined.
+
+## Sections
+
+A separator line (a name consisting only of `-`, `=`, `+`, `#` or `%`) starts
+a new section, just like in `argitect()`. The section title is the
+corresponding description. With the 3-tuple form:
+
+```{r section-3-tuple, eval = FALSE}
+sub_commands(
+    "----", "----", "Section one",
+    "sub1", "sub1.R", "This is sub-command 1.",
+
+    "----", "----", "Section two",
+    "sub2", "sub2.R", "This is sub-command 2."
+)
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("section-3-tuple", "")
+```
+
+And with the 2-tuple form:
+
+```{r section-2-tuple, eval = FALSE}
+sub_commands(
+    "----", "Section one",
+    "sub1.R", "This is sub-command 1.",
+
+    "----", "Section two",
+    "sub2.R", "This is sub-command 2."
+)
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("section-2-tuple", "")
+```
+
+
+## Setting help head and foot
+
+`help_head` adds text before the help message and `help_foot` adds text after the help message.
+
+
+```{r head-foot, eval = FALSE}
+sub_commands(
+    help_head = "This is the head of the help message.",
+
+    "sub1", "sub1.R", "This is sub-command 1.",
+    "sub2", "sub2.R", "This is sub-command 2.",
+
+    help_foot = "This is the foot of the help message."
+)
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("head-foot", "")
+```
+
+
+## Template
+
+A single string is treated as a template, where each command is marked by the
+`template_tag` (default `<CODE>`). The code part can be either `script.R`
+(the command name is derived from the file name) or `command=script.R`:
+
+```{r template1, eval = FALSE}
+sub_commands(
+"This is the head of the help message.
+
+Usage: Rscript main.R [command] [options]
+
+Commands:
+  <sub1.R> This is sub-command 1.
+  <sub2=sub2.R> This is sub-command 2.
+
+This is the foot of the help message.
+")
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("template1", "")
+```
+
+The same as in `argitect()`, here the template also allows `{{...}}` to contain executable code to interpolate
+and to insert into the template.
+
+```{r template2, eval = FALSE}
+sub1_script = system.file("extdata", "sub1.R", package = "argitect")
+sub2_script = system.file("extdata", "sub2.R", package = "argitect")
+sub_commands(
+"This is the head of the help message.
+
+Usage: Rscript main.R [command] [options]
+
+{{ cli_h2('Section') }}
+  <sub1={{ sub1_script }}> This is sub-command 1.
+  <sub2={{ sub2_script }}> This is sub-command 2.
+
+This is the foot of the help message.
+
+Questions, please contact {{ col_magenta(style_underline(style_italic('your.name@email'))) }}
+")
+```
+
+```{r, echo = FALSE, eval = TRUE}
+run_code("template2", "")
+```
+
+## –-help and –-version
+
+`--help` on the parent script is the same as giving no argument, which prints
+the list of sub-commands. `--version` prints the `VERSION` variable from the
+calling environment. Both `-h` and `-v` are accepted as well.
+
+```{r version, eval = FALSE}
+VERSION = "1.0.0"
+sub_commands(
+    "sub1.R", "This is sub command 1.",
+    "sub2.R", "This is sub command 2."
+)
+```
+
+```
+~\> Rscript main.R --version
+1.0.0
+```
+
+## Script existence
+
+The sub-scripts must exist. If a specified sub-script path does not exist,
+`sub_commands()` raises an error:
+
+```{r, error = TRUE}
+sub_commands(
+    "sub1", "non_existing_dir/sub1.R", "This is sub command 1."
+)
+```
+
+## Session info
+
+```{r}
+sessionInfo()
+```
+
+<script>
+var elements = document.getElementsByTagName("pre");
+for(var i = 0; i < elements.length; i ++ ) {
+    if(!elements[i].hasAttribute("class")) {
+        code = elements[i].children[0];
+        code.style.color = "white";
+        code.style.background = "rgb(38,38,38)";
+        elements[i].style.background = "hsl(70, 0%, 15%)";
+    }
+}
+</script>

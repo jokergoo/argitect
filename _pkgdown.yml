@@ -1,0 +1,7 @@
+destination: docs
+
+before: Sys.setenv(NO_COLOR = "1")
+navbar:
+  title: "argitect"
+template:
+  bootstrap: 5

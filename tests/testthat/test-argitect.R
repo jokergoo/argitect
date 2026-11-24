@@ -343,7 +343,7 @@ test_that("conversion errors name the argument and are not double-prefixed", {
 
 
 test_that("config option controls bundling and ignore_case", {
-    on.exit(argitect.options(RESET = TRUE), add = TRUE)
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
 
     # bundling is the default: -abg is -a -b -g
     e = new.env()
@@ -353,30 +353,90 @@ test_that("config option controls bundling and ignore_case", {
     expect_true(e$gamma)
 
     # no_bundling disables bundling
-    argitect.options("config" = "no_bundling")
+    argitect_options("config" = "no_bundling")
     e = new.env()
     expect_error(argitect("alpha!", "A.", "beta!", "B.", envir = e, argv_str = "-ab"),
         "Unknown option")
 
     # ignore_case matches names case-insensitively
-    argitect.options("config" = "ignore_case")
+    argitect_options("config" = "ignore_case")
     e = new.env()
     argitect("foo=i", "F.", envir = e, argv_str = "--FOO 5")
     expect_equal(e$foo, 5L)
 
     # no_ignore_case overrides ignore_case
-    argitect.options("config" = c("ignore_case", "no_ignore_case"))
+    argitect_options("config" = c("ignore_case", "no_ignore_case"))
     e = new.env()
     expect_error(argitect("foo=i", "F.", envir = e, argv_str = "--FOO 5"), "Unknown option")
 })
 
 
-test_that("argitect_options is an alias of argitect.options", {
-    expect_identical(argitect_options, argitect.options)
+test_that("argitect_options is an alias of argitect_options", {
+    expect_identical(argitect_options, argitect_options)
 
-    on.exit(argitect.options(RESET = TRUE), add = TRUE)
+    on.exit(argitect_options(RESET = TRUE), add = TRUE)
     argitect_options("help_width" = 100)
-    expect_equal(argitect.options("help_width"), 100)
-    argitect.options("help_width" = 90)
+    expect_equal(argitect_options("help_width"), 100)
+    argitect_options("help_width" = 90)
     expect_equal(argitect_options("help_width"), 90)
+})
+
+
+test_that("a single '-' is a normal value, not an option name", {
+    e = new.env()
+    argitect("input=s#", "I.", envir = e, argv_str = "-")
+    expect_equal(e$input, "-")
+
+    e = new.env()
+    argitect("a=s", "A.", envir = e, argv_str = "--a -")
+    expect_equal(e$a, "-")
+
+    e = new.env()
+    argitect("a=s@", "A.", envir = e, argv_str = "--a - x")
+    expect_equal(e$a, c("-", "x"))
+
+    e = new.env()
+    argitect("input=s#{}", "I.", envir = e, argv_str = "-- - x")
+    expect_equal(e$input, c("-", "x"))
+})
+
+
+test_that("positional arguments support a fixed key set", {
+    e = new.env()
+    argitect("coord=i#{x,y}", "", envir = e, argv_str = "1 2")
+    expect_equal(e$coord, c(x = 1L, y = 2L))
+
+    e = new.env()
+    expect_error(argitect("coord=i#{x,y}", "", envir = e, argv_str = "1"),
+        "Insufficient")
+
+    e = new.env()
+    expect_error(argitect("coord=i#{x,y}", "", envir = e, argv_str = ""),
+        "mandatory")
+
+    # a named default is used when no token is given
+    e = new.env(); e$coord = c(x = 7L, y = 8L)
+    argitect("coord=i#{x,y}", "", envir = e, argv_str = "")
+    expect_equal(e$coord, c(x = 7L, y = 8L))
+})
+
+
+test_that("multiple single-letter aliases are all accepted", {
+    e = new.env()
+    argitect("number|a|b|c=i", "N.", envir = e, argv_str = "-b 5")
+    expect_equal(e$number, 5L)
+
+    e = new.env()
+    argitect("number|a|b|c=i", "N.", envir = e, argv_str = "-a 2")
+    expect_equal(e$number, 2L)
+
+    e = new.env()
+    argitect("number|a|b|c=i", "N.", envir = e, argv_str = "--number 7")
+    expect_equal(e$number, 7L)
+
+    # the help message renders without error and lists every alias
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    out = capture.output(argitect("number|a|b|c=i", "N.", envir = new.env(),
+        argv_str = "--help"))
+    expect_true(any(grepl("--number, -a, -b, -c", out)))
 })

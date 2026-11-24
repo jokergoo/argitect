@@ -17,11 +17,10 @@ bold   = function(...) style_bold(paste0(...))
 # when an expression is present
 render_desc = function(x, .envir = NULL) {
     if(length(x) == 0) return(x)
-    caller = parent.frame()
     vapply(x, function(s) {
         if(is.na(s) || !nzchar(s)) return(s)
         if(!grepl("{{", s, fixed = TRUE)) return(s)
-        env = if(is.null(.envir)) glue_env(caller) else .envir
+        env = if(is.null(.envir)) glue_env() else .envir
         as.character(glue::glue(s, .open = "{{", .close = "}}", .envir = env))
     }, character(1), USE.NAMES = FALSE)
 }
@@ -51,7 +50,11 @@ capture_cli_fun = function(f) {
     }
 }
 
-glue_env = function(caller = parent.frame()) {
+glue_env = function(caller = NULL) {
+    # prefer the frame of the argitect()/sub_commands() call so that local
+    # variables in the caller are visible to "{{ ... }}" interpolation
+    if(is.null(caller)) caller = .argitect_ctx$glue_envir
+    if(is.null(caller)) caller = parent.frame()
     env = new.env(parent = caller)
     cli_ns = asNamespace("cli")
     for(nm in getNamespaceExports("cli")) {
@@ -89,7 +92,16 @@ message_wrap = function (...) {
 
 # wrap a block of plain text to a given width
 # prefix is prepended to every line (used for indentation of wrapped text)
-format_text = function(text, prefix = "  ", width = argitect.options("help_width")) {
+# help_width can be one number (total width) or two numbers
+# (total width and the width of the first column in two-column mode)
+help_widths = function(w = NULL) {
+    if(is.null(w)) w = .argitect_ctx$help_width
+    if(is.null(w)) w = argitect_options("help_width")
+    w = as.numeric(w)
+    if(length(w) >= 2) list(total = w[1], opt = w[2]) else list(total = w[1], opt = NULL)
+}
+
+format_text = function(text, prefix = "  ", width = help_widths()$total) {
     if(length(text) == 0) return("")
     text = as.character(text)
     text = render_desc(text)

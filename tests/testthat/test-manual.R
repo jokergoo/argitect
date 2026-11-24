@@ -90,6 +90,9 @@ test_that("whether command-line argument can be parsed", {
 	expect_error( test_argitect("arg=i#{2,4}", "1") )
 	expect_error( test_argitect("arg=i#{2,4}", "1 2 3 4 5 6") )
 
+	expect_equal( test_argitect("arg=i#{foo,bar}", "1 2"), c("foo" = 1L, "bar" = 2L))
+	expect_error( test_argitect("arg=i#{foo,bar,}", "1 2 3") )
+
 	expect_equal( test_argitect("arg=i@", "--arg 1 2"), 1:2)
 	expect_error( test_argitect("arg=i@", "--arg 1 2.1") )
 	expect_error( test_argitect("arg=i@", "--arg 1 a") )
@@ -195,7 +198,9 @@ test_that("whether command-line argument can be parsed", {
 
 	expect_equal( test_argitect("foo=i", "--foo 0b11"), 3L )
 	expect_equal( test_argitect("foo=i", "--foo 011"), 9L )
-	expect_equal( test_argitect("foo=i", "--foo 0x11"), 17L )
+
+	expect_equal( test_argitect("foo_bar=i", "--foo_bar 10"), 10L )
+	expect_equal( test_argitect("foo_bar=i", "--foo-bar 10"), 10L )
 })
 
 
@@ -253,7 +258,16 @@ test_that("multiple arguments", {
 	e = new.env()
 	argitect("foo|=i", "", argv_str = "-f 1", envir = e)
 	expect_equal(e$foo, 1L)
+
+	e = new.env()
+	argitect("foo|h=i", "foo",
+		     argv_str = "-h 1", envir = e)
+	expect_equal(e$foo, 1L)
 	
+	e = new.env()
+	expect_error( argitect("foo|h=i", "foo",
+		     "bar|h=i", "bar",
+		     argv_str = "--help", envir = e) )
 })
 
 test_that("argument format", {
@@ -510,6 +524,18 @@ Usage: Rscript foo.R [options]
 expect_match(output, "--count, -c [integer, 2+]    This is a count.", fixed = TRUE)
 expect_match(output, "                             count.", fixed = TRUE)
 
+capture_help("
+Usage: Rscript foo.R [options]
+
+  <count=i@{2,}> This is a count. This is a count. This is a count.
+                 This is a count. This is a count.
+  <number=f> This is a number. This is a number. This is a number.
+             This is a number. This is a number.
+"
+) -> output
+expect_match(output, "--count, -c [integer, 2+]    This is a count.", fixed = TRUE)
+expect_match(output, "                             count.", fixed = TRUE)
+
 
 })
 
@@ -532,6 +558,12 @@ expect_error( sub_commands(
 expect_error( sub_commands(
 	"sub1", system.file("extdata", "sub1.R", package = "argitect"), "This is the description of sub command 1, which will be a long long long text.",
     "sub2", "sub2.R", "This is the description of sub command 2, which will be a long long long text."
+) )
+
+expect_error( sub_commands(
+	"sub1", system.file("extdata", "sub1.R", package = "argitect"), "This is the description of sub command 1, which will be a long long long text.",
+	"sub2", system.file("extdata", "sub2.R", package = "argitect"), "This is the description of sub command 2, which will be a long long long text.",
+	argv_str = "-xxx"
 ) )
 
 capture_subcommand_output(
@@ -612,6 +644,23 @@ This is the foot of the help message.
 "
 ) -> output
 expect_match(output, "── Section 1 ──", fixed = TRUE)
+
+capture_subcommand_output("
+This is the head of the help message.
+
+Usage: Rscript main.R [command] [options]
+
+  <sub1={{ system.file('extdata', 'sub1.R', package = 'argitect') }}> This is the description of sub command 1, 
+             which will be a long long
+          long text.
+  <longlonglong={{ system.file('extdata', 'sub2.R', package = 'argitect') }}> This is the description of sub command 2, 
+           which will be a long long long text.
+
+This is the foot of the help message.
+"
+) -> output
+expect_match(output, "                long long text.", fixed = TRUE)
+
 
 
 cmd = paste0("Rscript '", system.file("extdata", "main.R", package = "argitect"), "'")

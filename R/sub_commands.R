@@ -53,10 +53,15 @@
 #' @export
 sub_commands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL) {
 
+    # make local variables of the calling frame visible to "{{ ... }}"
+    old_glue_envir = .argitect_ctx$glue_envir
+    .argitect_ctx$glue_envir = parent.frame()
+    on.exit({ .argitect_ctx$glue_envir = old_glue_envir }, add = TRUE)
+
     IS_UNDER_COMMAND_LINE = !is.null(get_scriptname())
 
     if(is.null(argv_str)) {
-        argv_str = argitect.options("__argv_str__")
+        argv_str = argitect_options("__argv_str__")
     }
 
     OUT = if(IS_UNDER_COMMAND_LINE || is.null(argv_str)) stderr() else stdout()
@@ -124,12 +129,26 @@ sub_commands = function(..., help_head = NULL, help_foot = NULL, argv_str = NULL
         stop_wrap("Script '", script[which(!file.exists(script))[1]],
                   "' for command '", cmd, "' does not exist.")
     }
-    argitect.options("__prefix__" = paste0("Rscript ", script_name, " ", cmd))
-    on.exit(argitect.options("__prefix__" = NULL))
+    argitect_options("__prefix__" = paste0("Rscript ", script_name, " ", cmd))
+    on.exit(argitect_options("__prefix__" = NULL), add = TRUE)
 
     source_script(script, argv_str = ARGV_string)
 }
 
+
+# a template code is either "script" or "command=script". A script path may
+# itself contain "=" (or other special characters), so "=" is only treated as
+# the command/script separator when the part before it is a valid command name.
+split_cmd_script = function(code) {
+    eq = regexpr("=", code, fixed = TRUE)[1]
+    if(eq > 0) {
+        cmd = substr(code, 1, eq - 1)
+        if(grepl("^[A-Za-z0-9._-]+$", cmd)) {
+            return(c(cmd, substr(code, eq + 1, nchar(code))))
+        }
+    }
+    c(gsub("\\.[^.]*$", "", basename(code)), code)
+}
 
 # error about script paths in the specification that do not exist
 check_missing_scripts = function(spec) {
@@ -175,11 +194,8 @@ parse_sub_commands_spec = function(spec_list) {
             template = sub("^\\n", "", template)
             # evaluate "{{ ... }}" chunks before the template is parsed
             template = render_desc(template, .envir = glue_env())
-            code = find_code(argitect.options("template_tag"), template)$code
-            lt = strsplit(code, "=", fixed = TRUE)
-            lt = lapply(lt, function(x) {
-                if(length(x) == 1) c(gsub("\\.[^.]*$", "", x), x) else x
-            })
+            code = find_code(argitect_options("template_tag"), template)$code
+            lt = lapply(code, split_cmd_script)
             spec = do.call(rbind, lt)
             spec = cbind(spec, description = rep("", nrow(spec)))
             colnames(spec) = c("command", "script", "description")
@@ -320,7 +336,7 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
             for(i in ind) {
                 cat("  ", spec[i, 1], strrep(" ", opt_width - nchar(spec[i, 1])), "    ",
                     file = file, sep = "")
-                desc = strwrap(spec[i, 3], width = max(10, 0.9 * argitect.options("help_width") - opt_width - 6))
+                desc = strwrap(spec[i, 3], width = max(10, 0.9 * help_widths()$total - opt_width - 6))
                 if(length(desc) > 1) {
                     desc[-1] = paste0(prefix, desc[-1])
                 }
@@ -342,7 +358,7 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
             if(i == 1) {
                 lines2[i] = lines[i]
             } else {
-                if(grepl("^\\s{6,}\\w", lines[i], perl = TRUE)) {
+                if(grepl("^\\s{5,}\\w", lines[i], perl = TRUE)) {
                     lines2[length(lines2)] = paste0(lines2[length(lines2)], " ",
                         gsub("^\\s+", "", lines[i]))
                 } else {
@@ -355,7 +371,7 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
         # evaluate "{{ ... }}" chunks (e.g. {{ cli_h2("Section") }}) in the template
         lines = render_desc(lines, .envir = glue_env())
 
-        tag = argitect.options("template_tag")
+        tag = argitect_options("template_tag")
         n_line = length(lines)
 
         # first tag on each line, and the command name it stands for
@@ -364,8 +380,7 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
         for(i in seq_len(n_line)) {
             lt = find_code(tag, lines[i])
             if(length(lt$template) == 0) next
-            x = strsplit(lt$code[1], "=", fixed = TRUE)[[1]]
-            line_cmd[i] = if(length(x) == 1) gsub("\\.[^.]*$", "", x) else x[1]
+            line_cmd[i] = split_cmd_script(lt$code[1])[1]
             line_tmp[i] = lt$template[1]
         }
 
@@ -396,7 +411,7 @@ print_help_msg_sub_commands = function(spec_info, file = stdout(), script_name =
             cmd2 = paste0("  ", line_cmd[i], strrep(" ", max(0, cmd_width - nchar(line_cmd[i]))))
             cat(cmd2, "    ", file = file, sep = "")
 
-            desc = strwrap(desc, width = max(10, 0.9 * argitect.options("help_width") - cmd_width - 6))
+            desc = strwrap(desc, width = max(10, 0.9 * help_widths()$total - cmd_width - 6))
             if(length(desc) > 1) {
                 desc[-1] = paste0(prefix, desc[-1])
             }

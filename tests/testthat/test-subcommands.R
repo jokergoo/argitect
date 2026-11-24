@@ -309,3 +309,25 @@ test_that("wrong-command error is not double-prefixed", {
     expect_match(err, "wrong command")
     expect_false(grepl("^Error:", err))
 })
+
+
+test_that("sub_commands handles '=' in script paths", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    strip = function(x) sub("[ \t]+$", "", x)
+
+    d = file.path(tempdir(), "argitect=sub dir")
+    make_sub_scripts(d)
+
+    out = strip(capture.output(sub_commands(paste0(
+        "Usage: Rscript main.R [command]\n\n",
+        "  <one=", file.path(d, "cmd1.R"), "> First cmd.\n",
+        "  <two=", file.path(d, "cmd2.R"), "> Second cmd.\n"), argv_str = "")))
+    expect_true(any(grepl("^  one +First cmd\\.$", out)))
+    expect_true(any(grepl("^  two +Second cmd\\.$", out)))
+
+    out = strip(capture.output(sub_commands(paste0(
+        "Usage: Rscript main.R [command]\n\n",
+        "  <one=", file.path(d, "cmd1.R"), "> First cmd.\n",
+        "  <two=", file.path(d, "cmd2.R"), "> Second cmd.\n"), argv_str = "one --x 7")))
+    expect_true(any(grepl("CMD1 x=7", out, fixed = TRUE)))
+})

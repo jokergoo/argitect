@@ -3,12 +3,18 @@
 # Global options for argitect()
 # ============================================================
 
+# internal context: the environment where "{{ ... }}" chunks in templates and
+# descriptions are evaluated. argitect() and sub_commands() set it to their
+# calling frame, so that local variables are visible to glue interpolation.
+.argitect_ctx = new.env(parent = emptyenv())
+.argitect_ctx$glue_envir = NULL
+
 #' Get or set global options for `argitect()`
 #'
 #' Get or set global options used by [`argitect()`]. This function is backed by
 #' [`GlobalOptions::setGlobalOptions()`], so options can be read and written with
-#' `argitect.options("name")`, `argitect.options("name" = value)`,
-#' `argitect.options(name = value)` or `argitect.options$name`.
+#' `argitect_options("name")`, `argitect_options("name" = value)`,
+#' `argitect_options(name = value)` or `argitect_options$name`.
 #'
 #' @param ... Named options to set, or a single option name to get.
 #' @param RESET Whether to reset all options to their default values.
@@ -30,31 +36,36 @@
 #'     - `"no_ignore_case"`: keep case-sensitive matching; if both
 #'       `"ignore_case"` and `"no_ignore_case"` are given, the latter wins.
 #'
-#'   For example `argitect.options("config" = c("ignore_case", "no_bundling"))`.
+#'   For example `argitect_options("config" = c("ignore_case", "no_bundling"))`.
 #' - `template_tag` The tag identifying specifications in a template, in the
 #'   format "`left_tag CODE right_tag`" (default `"<CODE>"`).
 #' - `help_style` The style of the help message: `"one-column"` or
 #'   `"two-column"`.
-#' - `help_width` The maximal width of the help message.
+#' - `help_width` The width of the help message, as a vector of one or two
+#'   numbers (default `c(90, 40)`). The first number is the total width; the
+#'   one-column style uses only it. The second number is the width of the
+#'   first (option) column used by the two-column style. Option names that are
+#'   too long are wrapped, and continuation lines are aligned with the second
+#'   option name.
 #' - `value_sep` The separator used to split multiple values inside a single
 #'   `name=value` pair for a vector sub-argument. The default `"auto"`
 #'   automatically detects the separator among `","`, `";"`, `":"`, `"|"` and
 #'   `"/"` by picking the one that satisfies the type and count constraints.
 #'
-#' `argitect.options(...)` should be put before calling [`argitect()`].
+#' `argitect_options(...)` should be put before calling [`argitect()`].
 #'
 #' @return The current option value (when getting) or, invisibly, the full
 #'   option list (when setting).
 #'
 #' @examples
-#' argitect.options("help_width")
-#' old = argitect.options("help_width")
-#' argitect.options("help_width" = 100)
-#' argitect.options("help_width")
-#' argitect.options("help_width" = old)
+#' argitect_options("help_width")
+#' old = argitect_options("help_width")
+#' argitect_options("help_width" = 100)
+#' argitect_options("help_width")
+#' argitect_options("help_width" = old)
 #'
 #' @export
-argitect.options = setGlobalOptions(
+argitect_options = setGlobalOptions(
     config = list(.value = NULL,
                   .class = "character"),
     template_tag = list(.value = "<CODE>",
@@ -80,7 +91,7 @@ argitect.options = setGlobalOptions(
                       },
                       .validate = function(x) x %in% c("one-column", "two-column"),
                       .failed_msg = "help_style should be one of 'one-column' and 'two-column'"),
-    "help_width" = 90,
+    "help_width" = c(90, 40),
     value_sep = list(.value = "auto",
                      .length = 1,
                      .class = "character"),
@@ -94,9 +105,9 @@ argitect.options = setGlobalOptions(
                         .visible = FALSE)
 )
 
-#' @rdname argitect.options
+#' @rdname argitect_options
 #' @export
-argitect_options = argitect.options
+argitect.options = argitect_options
 
 
 # ============================================================
@@ -127,7 +138,7 @@ get_scriptname = function() {
         f = normalizePath(f)
         return(f)
     } else {
-        sn = argitect.options("__script_name__")
+        sn = argitect_options("__script_name__")
         if(is.null(sn)) return(NULL)
         return(normalizePath(sn))
     }
@@ -179,14 +190,14 @@ get_scriptdir = function() {
 #'
 #' @export
 source_script = function(file, ..., argv_str = NULL) {
-    argitect.options("__argv_str__" = argv_str)
-    argitect.options("__script_name__" = file)
+    argitect_options("__argv_str__" = argv_str)
+    argitect_options("__script_name__" = file)
     on.exit({
-        argitect.options("__script_name__" = NULL)
-        argitect.options("__argv_str__" = NULL)
+        argitect_options("__script_name__" = NULL)
+        argitect_options("__argv_str__" = NULL)
     })
 
-    # in the interactive mode, command-line arguments are provided by argitect.options("__argv_str__")
+    # in the interactive mode, command-line arguments are provided by argitect_options("__argv_str__")
     # a caught "argitect_exit" means --help / --version was handled and the script should stop
     tryCatch(base::source(file, ...), argitect_exit = function(e) invisible(NULL))
 }

@@ -1,3 +1,5 @@
+#!/usr/local/bin/Rscript
+
 library(argitect)
 
 sub_commands(

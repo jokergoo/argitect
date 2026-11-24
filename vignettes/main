@@ -1,0 +1,9 @@
+#!/usr/bin/env Rscript
+
+library(argitect)
+
+sub_commands(
+	system.file("extdata", "sub1.R", package = "argitect"), "Description of sub command 1.",
+    system.file("extdata", "sub2.R", package = "argitect"), "Description of sub command 2."
+)
+
