@@ -44,6 +44,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/jokergoo/argitect/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -62,7 +63,7 @@
             
             <h4 data-toc-skip class="date">2026-11-24</h4>
       
-
+      <small class="dont-index">Source: <a href="https://github.com/jokergoo/argitect/blob/HEAD/vignettes/sub_commands.Rmd" class="external-link"><code>vignettes/sub_commands.Rmd</code></a></small>
       <div class="d-none name"><code>sub_commands.Rmd</code></div>
     </div>
 
@@ -84,7 +85,7 @@ organized as a 3-tuple.</p>
 <p>The following code is put in the script called <code>main.R</code>
 (parent script) which contains dispatches of sub-commands.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/sub_commands.html">sub_commands</a></span><span class="op">(</span></span>
 <span>    <span class="st">"sub1"</span>, <span class="st">"sub1.R"</span>, <span class="st">"Description of sub command 1."</span>,</span>
@@ -92,14 +93,14 @@ organized as a 3-tuple.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Code in <code>sub1.R</code>:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span><span class="st">"foo=i"</span>, <span class="st">"Set value for foo."</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"foo is "</span>, <span class="va">foo</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
 <p>And code in <code>sub2.R</code>:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span><span class="st">"bar=i"</span>, <span class="st">"Set value for bar"</span><span class="op">)</span></span>
 <span></span>
@@ -138,7 +139,7 @@ line can be added to the first line of the parent R script, then
 is a linux utility program.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#!/usr/bin/env Rscript</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/sub_commands.html">sub_commands</a></span><span class="op">(</span></span>
 <span>    <span class="st">"sub1"</span>, <span class="st">"sub1.R"</span>, <span class="st">"This is sub-command 1."</span>,</span>

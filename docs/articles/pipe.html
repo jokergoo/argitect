@@ -44,6 +44,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/jokergoo/argitect/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -62,7 +63,7 @@
             
             <h4 data-toc-skip class="date">2026-11-24</h4>
       
-
+      <small class="dont-index">Source: <a href="https://github.com/jokergoo/argitect/blob/HEAD/vignettes/pipe.Rmd" class="external-link"><code>vignettes/pipe.Rmd</code></a></small>
       <div class="d-none name"><code>pipe.Rmd</code></div>
     </div>
 
@@ -75,7 +76,7 @@ support special flags. In the following example, the argument
 <code>input</code> expects a file or a flag representing standard
 input.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"input=s"</span>, <span class="st">"input"</span></span>
 <span><span class="op">)</span></span>
@@ -93,7 +94,7 @@ or <code>stdin</code>:</p>
 <p><code>input</code> can also be set as a positional argument, then no
 argument name is needed to specify on the command-line.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"input=s#"</span>, <span class="st">"input"</span></span>
 <span><span class="op">)</span></span>
@@ -106,7 +107,7 @@ argument name is needed to specify on the command-line.</p>
 <pre><code>~\&gt; cat main.R | Rscript pipe.R -
 ~\&gt; cat main.R | Rscript pipe.R stdin</code></pre>
 <p><code>main.R</code> is the script we used in vignette <a href="sub_commands.html">Dispatching to sub-commands</a>.</p>
-<pre><code><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">argitect</span><span class="op">)</span></span>
+<pre><code><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jokergoo/argitect" class="external-link">argitect</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/sub_commands.html">sub_commands</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"sub1.R"</span>, package <span class="op">=</span> <span class="st">"argitect"</span><span class="op">)</span>, <span class="st">"This is the description of sub command 1, which will be a long long long text."</span>,</span>
