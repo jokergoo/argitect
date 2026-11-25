@@ -4,11 +4,11 @@
 
 ------------------------------------------------------------------------
 
-## Automatically generated help
+## Automatically generat help message
 
 The help message is automatically generated according to the argument
 specifications. The following code shows the help message from scalar
-options.
+arguments.
 
 ``` r
 
@@ -20,14 +20,14 @@ argitect(
 )
 ```
 
-For each option, it prints the full option name (as well as the alias
-names if they are provided), the data mode, the flag letter (if the
-first letter is unique). Positional argument name is marked by `<>`
-which means the name is not necessary to specify. Positional arguments
-are explicitely added to the “Usage” if it is the first or the last
-option specified in [`argitect()`](../reference/argitect.md).
+For each argument, it prints the full argumnet name (as well as the
+alias names if they are provided), the data mode, the flag letter (if
+the first letter is unique). Positional argument name is marked by `<>`
+which means the name is not necessary to specify. Positional argument is
+explicitely added to “Usage” if it is the first or the last option
+specified in [`argitect()`](../reference/argitect.md).
 
-Two additional options `help` and `verbose` are inserted to the end.
+Two additional arguments `help` and `verbose` are inserted to the end.
 
     Usage: Rscript foo.R [options] [file]
 
@@ -46,7 +46,8 @@ Two additional options `help` and `verbose` are inserted to the end.
       --version
         Print version information and exit. 
 
-For the array or hash options, the data mode is adjusted accordingly.
+For the vector or hash arguments, the data mode text is adjusted
+accordingly.
 
 ``` r
 
@@ -71,8 +72,8 @@ argitect(
       --version, -v
         Print version information and exit. 
 
-When there are constraints on the array options, the range is added to
-the data mode part.
+When there are constraints on the vector arguments, the range is added
+to the data mode text.
 
 ``` r
 
@@ -118,7 +119,7 @@ argitect(
         Number of items. 
       --number2 [foo=integer, bar=integer, ...]
         Number of items. 
-      <file> [foo=character, bar=character]
+      <file> [<foo>=character, <bar>=character]
         Input files. 
       --help, -h
         Print help message and exit. 
@@ -128,8 +129,8 @@ argitect(
 For `%` with pre-defined names, see [Documenting
 sub-arguments](#Documenting_sub-arguments) section.
 
-If default values for options are provided, they are also added to the
-help message.
+If default values for some arguments are already provided, they are also
+added to the help message.
 
 ``` r
 
@@ -167,7 +168,7 @@ argitect(
 ## One-column and two-column styles
 
 The default style is one-column. `help_style` can be set to `two-column`
-so that in the two-column layout, option names are in the left column
+so that in the two-column layout, argument names are in the left column
 and descriptions are in the second column.
 
 ``` r
@@ -197,7 +198,7 @@ The style can also be set globally:
 argitect_options("help_style" = "two-column")
 ```
 
-The option name column can be controlled by adding a second value to
+The argument name column can be controlled by adding a second value to
 `help_width`, which controls the width of the first column in the
 two-column style.
 
@@ -225,11 +226,11 @@ argitect(
 
 ## Sections
 
-Options can be grouped. A separator line (a name consisting only of `-`,
-`=`, `+`, `#` or `%`) starts a new section. Note `help` and `version`
-will be added to the last section. If you only want to `help` and
-`version` as the last section, then simply create an section with the
-separator line but with no other options.
+Arguments can be grouped. A separator line (a name consisting only of
+`-`, `=`, `+`, `#` or `%`) starts a new section. Note `help` and
+`version` will be added to the last section. If you only want `help` and
+`version` in the last section, then simply create an section with the
+separator line but with no other argument.
 
 ``` r
 
@@ -275,8 +276,8 @@ extra specification in the form `parent$sub`:
 
 argitect(
     "arg=i%{foo, bar}", "This is a hash option.",
-    "arg$foo", "The foo part.",
-    "arg$bar", "The bar part."
+    "arg$foo", "The foo part.",  # only for documenting
+    "arg$bar", "The bar part."   # only for documenting
 )
 ```
 
@@ -296,7 +297,7 @@ argitect(
       --version, -v
         Print version information and exit. 
 
-If sub-argument is an array, the corresponding mode description is
+If sub-argument is a vector, the corresponding mode description is
 adjusted.
 
 ``` r
@@ -386,11 +387,11 @@ Questions, please contact {{ col_magenta(style_underline(style_italic('your.name
 
 ![](output.png)
 
-The width of the option column is computed per section, so options that
-are not separated by a blank line are aligned together.
+The width of the argument column is computed per section, so arguments
+that are not separated by a blank line are aligned together.
 
-If enough space is preserved before the second line of the text block,
-the text is automatically aligned.
+If enough space is preserved before the second line of the description
+text block, the text is automatically aligned.
 
 ``` r
 
@@ -407,9 +408,9 @@ Usage: Rscript foo.R [options]
       --count, -c [integer, 2+]    This is a count. This is a count. This is a
                                    count. This is a count. This is a count.
 
-## Head, foot and width
+## Head and foot
 
-`help_head` and `help_foot` are printed before and after the option
+`help_head` and `help_foot` are printed before and after the argument
 list, in the template as well as in the generated layout.
 
 ``` r
@@ -432,6 +433,7 @@ argitect(
         Print help message and exit. 
       --version, -v
         Print version information and exit. 
+
     This is the foot of the help message.
 
 ## Session info
@@ -464,11 +466,10 @@ sessionInfo()
     loaded via a namespace (and not attached):
      [1] digest_0.6.39       desc_1.4.3          R6_2.6.1           
      [4] GlobalOptions_0.1.4 fastmap_1.2.0       xfun_0.62          
-     [7] cachem_1.1.0        htmltools_0.5.9     png_0.1-9          
-    [10] rmarkdown_2.32      lifecycle_1.0.5     cli_3.6.6          
-    [13] sass_0.4.10         pkgdown_2.2.1       textshaping_1.0.5  
-    [16] jquerylib_0.1.4     systemfonts_1.3.2   compiler_4.6.0     
-    [19] tools_4.6.0         ragg_1.5.2          bslib_0.12.0       
-    [22] evaluate_1.0.5      yaml_2.3.12         otel_0.3.0         
-    [25] jsonlite_2.0.0      rlang_1.3.0         fs_2.1.0           
-    [28] htmlwidgets_1.6.4  
+     [7] cachem_1.1.0        htmltools_0.5.9     rmarkdown_2.32     
+    [10] lifecycle_1.0.5     cli_3.6.6           sass_0.4.10        
+    [13] pkgdown_2.2.1       textshaping_1.0.5   jquerylib_0.1.4    
+    [16] systemfonts_1.3.2   compiler_4.6.0      tools_4.6.0        
+    [19] ragg_1.5.2          bslib_0.12.0        evaluate_1.0.5     
+    [22] yaml_2.3.12         otel_0.3.0          jsonlite_2.0.0     
+    [25] rlang_1.3.0         fs_2.1.0            htmlwidgets_1.6.4  

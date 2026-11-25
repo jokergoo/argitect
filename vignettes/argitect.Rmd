@@ -41,7 +41,7 @@ run_code = function(code_block, argv_str) {
 ------------------------------------------------------------------------
 
 
-**argitect** (a phonetic approximation of "arkitect") is a pure-R command-line argument parser. It reimplements
+**argitect** (a phonetic approximation of "architect") is a pure-R command-line argument parser. It reimplements
 the functionality of the Perl module [**Getopt::Long**](https://metacpan.org/pod/Getopt::Long)
 without any external dependency, and additionally supports positional
 arguments and flexible help messages.
@@ -578,7 +578,7 @@ argitect(
 ~\> Rscript foo.R --size 1 2 3
 ```
 
-In the option specification, names are also allowed.
+In the positional option specification, names are also allowed.
 
 ```{r, eval = FALSE}
 argitect(

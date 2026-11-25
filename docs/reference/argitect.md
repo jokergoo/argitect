@@ -14,7 +14,6 @@ argitect(
   envir = parent.frame(),
   argv_str = NULL,
   explain = FALSE,
-  template_control = list(),
   help_style = argitect_options("help_style"),
   help_width = argitect_options("help_width"),
   value_sep = argitect_options("value_sep")
@@ -26,8 +25,8 @@ argitect(
 - ...:
 
   Argument specifications. They can be given as
-  `(specification, description)` pairs, a two-column matrix, or a single
-  text template. See Details.
+  specification-description pairs, or a single text template. See
+  Details.
 
 - help_head:
 
@@ -51,11 +50,6 @@ argitect(
   If `TRUE`, print an explanation of each argument specification (its
   format and simple examples) and return without parsing any
   command-line arguments.
-
-- template_control:
-
-  A list controlling template help rendering, e.g.
-  `list(opt_width = 21)`.
 
 - help_style:
 
@@ -90,6 +84,8 @@ range or sub-argument list. The `i` mode also accepts extended integer
 notation: `0x`/`0X` hexadecimal, `0b`/`0B` binary, `0`/`0o`/`0O` octal
 (e.g. `0123`), and decimal.
 
+Examples are:
+
 - `"number=i"`: a single integer scalar.
 
 - `"name=s"`: a single character scalar.
@@ -112,14 +108,18 @@ If a variable with the first name already exists in `envir` (and is not
 a function), it is used as the default value and the option becomes
 optional. Logical options always default to `FALSE`.
 
+For more details, please refer to the vignette.
+
 ## Examples
 
 ``` r
-e = new.env()
-argitect("count=i", "Number of items.", "verbose!", "Print messages.",
-    envir = e, argv_str = "--count 3 --verbose")
-e$count
+argitect(
+    "count=i", "Number of items.", 
+    "verbose!", "Print messages.",
+    argv_str = "--count 3 --verbose"
+)
+count
 #> [1] 3
-e$verbose
+verbose
 #> [1] TRUE
 ```

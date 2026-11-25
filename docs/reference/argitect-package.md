@@ -7,6 +7,16 @@ rich, customizable help messages, including one-column and two-column
 styles, template-based usage text, option grouping, default-value
 reporting and sub-option documentation, as well as sub-command dispatch.
 
+## See also
+
+Useful links:
+
+- <https://github.com/jokergoo/argitect>
+
+- <https://jokergoo.github.io/argitect/>
+
+- Report bugs at <https://github.com/jokergoo/argitect/issues>
+
 ## Author
 
 **Maintainer**: Zuguang Gu <guzuguang@suat-sz.edu.cn>

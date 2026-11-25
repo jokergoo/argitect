@@ -57,8 +57,8 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="argitect">argitect<a class="anchor" aria-label="anchor" href="#argitect"></a>
 </h1></div>
-<p>A pure-R command-line argument parser that reimplements the functionality of the Perl module <a href="https://perldoc.pl/Getopt::Long" class="external-link"><code>Getopt::Long</code></a> without any external dependency, and additionally supports <strong>positional arguments</strong>. It also provides rich, customizable help messages. This package is a replacement of the <a href="https://cran.r-project.org/package=GetoptLong" class="external-link"><strong>GetoptLong</strong></a> package.</p>
-<p>argitect is a phonetic approximation of “arkitect”.</p>
+<p>A pure-R command-line argument parser that reimplements the functionality of the Perl module <a href="https://perldoc.pl/Getopt::Long" class="external-link"><strong>Getopt::Long</strong></a> without any external dependency, and additionally supports positional arguments. It also provides rich, customizable help messages. This package is a replacement of the <a href="https://cran.r-project.org/package=GetoptLong" class="external-link"><strong>GetoptLong</strong></a> package.</p>
+<p>“argitect” is a phonetic approximation of “architect”.</p>
 <div class="section level2">
 <h2 id="install">Install<a class="anchor" aria-label="anchor" href="#install"></a>
 </h2>
@@ -80,13 +80,13 @@
 <span><span class="op">)</span></span></code></pre></div>
 <p>Run from the command line:</p>
 <pre><code>Rscript foo.R --number 4 --cutoff 0.01 --verbose data.txt
-Rscript foo.R --n4 -c=0.01 -v data.txt</code></pre>
+Rscript foo.R -n4 -c=0.01 --no-verbose data.txt</code></pre>
 <p>Parsed values are exported as R variables in the calling environment.</p>
 </div>
 <div class="section level2">
 <h2 id="specification-language">Specification language<a class="anchor" aria-label="anchor" href="#specification-language"></a>
 </h2>
-<p>Each argument is <code>name[|alias...]=spec</code>. The value part <code>spec</code> is an optional <strong>mode</strong> and an optional <strong>type</strong>, optionally followed by a bracketed range or sub-argument list.</p>
+<p>Each option is in the format <code>name[|alias...]=spec</code>. The value part <code>spec</code> is an optional <strong>mode</strong> and an optional <strong>type</strong>, optionally followed by a bracketed range or sub-argument list.</p>
 <ul>
 <li>modes: <code>i</code> integer, <code>f</code> numeric, <code>s</code> character, <code>l</code> logical</li>
 <li>types: <code>$</code> scalar, <code>#</code> positional, <code>@</code> vector, <code>%</code> hash (list)</li>
@@ -107,7 +107,7 @@ Rscript foo.R --n4 -c=0.01 -v data.txt</code></pre>
 </tr>
 <tr>
 <td><code>length|size=i</code></td>
-<td>integer scalar with two names</td>
+<td>integer scalar with two option names</td>
 </tr>
 <tr>
 <td><code>tag=i@</code></td>
@@ -115,7 +115,7 @@ Rscript foo.R --n4 -c=0.01 -v data.txt</code></pre>
 </tr>
 <tr>
 <td><code>tag=i@{2,4}</code></td>
-<td>integer vector with 2–4 elements</td>
+<td>integer vector with 2-4 elements</td>
 </tr>
 <tr>
 <td><code>param=s%</code></td>

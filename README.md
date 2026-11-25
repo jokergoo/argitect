@@ -6,7 +6,7 @@ external dependency, and additionally supports positional arguments. It
 also provides rich, customizable help messages. This package is a replacement
 of the [**GetoptLong**](https://cran.r-project.org/package=GetoptLong) package.
 
-"argitect" is a phonetic approximation of "arkitect".
+"argitect" is a phonetic approximation of "architect".
 
 ## Install
 

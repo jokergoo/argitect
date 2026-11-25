@@ -6,10 +6,10 @@
 
 ## A quick example
 
-When a script gets complicated, it might be better to split it into
+When a script gets complicated, it would be better to split it into
 several sub-scripts where each is focused on a specific task. Here
 [`sub_commands()`](../reference/sub_commands.md) supports to dispatch
-command-line options to sub-scripts.
+command-line arguments to sub-scripts.
 
 The following code gives you a quick example of how the sub commands are
 set. In the function [`sub_commands()`](../reference/sub_commands.md),
@@ -56,20 +56,19 @@ supports.
 
     ~\> Rscript main.R
 
-    Usage: Rscript foo.R [command] [options]
+    Usage: Rscript main.R [command] [options]
 
     Commands:
       sub1    Description of sub command 1.
       sub2    Description of sub command 2.
 
-When a sub-command is called, the corresponding R script is invoked.
-Here all command-line arguments after the sub command `sub1` go to the
-correspond R script `sub1.R`. Internally, it actually executes
-`Rscript sub1.R --help`.
+When a sub-command is called, the corresponding R script is invoked. All
+command-line arguments after the sub-command `sub1` go to the correspond
+R script `sub1.R`. Internally, it executes `Rscript sub1.R --help`.
 
     ~\> Rscript main.R sub1 --help
 
-    Usage: Rscript foo.R sub1 [options]
+    Usage: Rscript main.R sub1 [options]
 
     Options:
       --foo, -f integer
@@ -79,8 +78,9 @@ correspond R script `sub1.R`. Internally, it actually executes
       --version, -v
         Print version information and exit. 
 
-Options in `sub1.R` can be directly set after the sub-command, which
-internally equivalent to `Rscript sub1.R --foo 10`.
+Command-line arguments for `sub1.R` can be directly put after the
+sub-command `sub1`, which is internally equivalent to
+`Rscript sub1.R --foo 10`.
 
     ~\> Rscript main.R sub1 --foo 10
 
@@ -89,7 +89,7 @@ internally equivalent to `Rscript sub1.R --foo 10`.
 A [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) line can be
 added to the first line of the parent R script, then `Rscript` is not
 necessary to be explicitely called. Also `.R` suffix of the parent
-script can be removed to pretend it is a linux utility program.
+script can be removed to pretend as a linux utility program.
 
 ``` r
 
@@ -138,7 +138,7 @@ sub_commands(
 )
 ```
 
-    Usage: Rscript foo.R [command] [options]
+    Usage: Rscript main.R [command] [options]
 
     Commands:
       one    This is sub-command 1.
@@ -161,18 +161,21 @@ sub_commands(
     "----", "----", "Section one",
     "sub1", "sub1.R", "This is sub-command 1.",
 
-    "----", "----", "Section two",
+    "----", "Section two", "----", 
     "sub2", "sub2.R", "This is sub-command 2."
 )
 ```
 
-    Usage: Rscript foo.R [command] [options]
+    Usage: Rscript main.R [command] [options]
 
     Section one
       sub1    This is sub-command 1.
 
     Section two
       sub2    This is sub-command 2.
+
+In the line of the section name, it does not matter whether the section
+name is in the third position or the second position.
 
 And with the 2-tuple form:
 
@@ -187,7 +190,7 @@ sub_commands(
 )
 ```
 
-    Usage: Rscript foo.R [command] [options]
+    Usage: Rscript main.R [command] [options]
 
     Section one
       sub1    This is sub-command 1.
@@ -214,7 +217,7 @@ sub_commands(
 
     This is the head of the help message.
 
-    Usage: Rscript foo.R [command] [options]
+    Usage: Rscript main.R [command] [options]
 
     Commands:
       sub1    This is sub-command 1.
@@ -238,7 +241,7 @@ Usage: Rscript main.R [command] [options]
 
 Commands:
   <sub1.R> This is sub-command 1.
-  <sub2=sub2.R> This is sub-command 2.
+  <two=sub2.R> This is sub-command 2.
 
 This is the foot of the help message.
 ")
@@ -250,7 +253,7 @@ This is the foot of the help message.
      
     Commands: 
       sub1    This is sub-command 1.
-      sub2    This is sub-command 2.
+      two     This is sub-command 2.
      
     This is the foot of the help message. 
 

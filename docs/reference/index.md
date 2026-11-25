@@ -9,11 +9,9 @@
 
   Get or set global options for [`argitect()`](../reference/argitect.md)
 
-- [`get_scriptdir()`](get_scriptdir.md) : Directory of the current
-  script
-
-- [`get_scriptname()`](get_scriptname.md) : File name of the current
-  script
+- [`get_scriptname()`](get_scriptname.md)
+  [`get_scriptdir()`](get_scriptname.md) : File or directory name of the
+  current script
 
 - [`source_script()`](source_script.md) : Source an R script with
   command-line arguments

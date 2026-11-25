@@ -14,7 +14,7 @@ sub_commands(..., help_head = NULL, help_foot = NULL, argv_str = NULL)
 
 - ...:
 
-  Specification of commands. See Details.
+  Specification of commands.
 
 - help_head:
 
@@ -36,22 +36,16 @@ Invisible `NULL`.
 
 The specification can be one of the following:
 
-1.  A two-column matrix: `(script path, description)`. The command name
-    is the basename of the script path without its extension.
-
-2.  A three-column matrix: `(command, script path, description)`.
-
-3.  A vector with length a multiple of 2:
+1.  A vector with length a multiple of 2:
     `(script path, description, ...)`.
 
-4.  A vector with length a multiple of 3:
+2.  A vector with length a multiple of 3:
     `(command, script path, description, ...)`.
 
-5.  A single string template where commands are marked by the template
+3.  A single string template where commands are marked by the template
     tag (default `<CODE>`).
 
-Commands can be grouped into sections by a separator line, e.g.
-`"----", "----", "This is a section"`.
+For more details, please refer to the vignette.
 
 ## Examples
 
@@ -61,12 +55,12 @@ dir.create(d)
 writeLines(c(
     'library(argitect)',
     'argitect("x=i", "X.")',
-    'cat("x =", x, "\\n")'
+    'cat("x =", x, "\n")'
 ), file.path(d, "cmd1.R"))
 writeLines(c(
     'library(argitect)',
     'argitect("y=s", "Y.")',
-    'cat("y =", y, "\\n")'
+    'cat("y =", y, "\n")'
 ), file.path(d, "cmd2.R"))
 sub_commands(
     file.path(d, "cmd1.R"), "First command",

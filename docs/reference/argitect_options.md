@@ -4,8 +4,7 @@ Get or set global options used by [`argitect()`](argitect.md). This
 function is backed by
 [`GlobalOptions::setGlobalOptions()`](https://rdrr.io/pkg/GlobalOptions/man/set_opt.html),
 so options can be read and written with `argitect_options("name")`,
-`argitect_options("name" = value)`, `argitect_options(name = value)` or
-`argitect_options$name`.
+`argitect_options(name = value)` or `argitect_options$name`.
 
 ## Usage
 
@@ -61,8 +60,9 @@ list (when setting).
 
 Supported options:
 
-- `config` A character vector of parser configuration flags. The
-  following values are recognized:
+- `config` A character vector of parser configuration flags (default
+  `c("bundling", "no_ignore_case")`). The following values are
+  recognized:
 
   - `"bundling"`: allow single-letter flags to be combined, so that
     `-abc` is the same as `-a -b -c` (this is the default behavior).
@@ -99,7 +99,7 @@ Supported options:
   count constraints.
 
 `argitect_options(...)` should be put before calling
-[`argitect()`](argitect.md).
+[`argitect()`](argitect.md) or [`sub_commands()`](sub_commands.md).
 
 ## Examples
 
@@ -109,6 +109,14 @@ argitect_options("help_width")
 old = argitect_options("help_width")
 argitect_options("help_width" = 100)
 argitect_options("help_width")
-#> [1] 100
-argitect_options("help_width" = old)
+#> [1] 100  44
+argitect_options(RESET = TRUE)
+argitect_options
+#>  Option       Value                   
+#>  ------------:--------------------------
+#>  config       bundling, no_ignore_case
+#>  template_tag <CODE>                  
+#>  help_style   one-column              
+#>  help_width   90, 40                  
+#>  value_sep    auto                    
 ```

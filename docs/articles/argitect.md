@@ -4,9 +4,9 @@
 
 ------------------------------------------------------------------------
 
-**argitect** (a phonetic approximation of “arkitect”) is a pure-R
+**argitect** (a phonetic approximation of “architect”) is a pure-R
 command-line argument parser. It reimplements the functionality of the
-Perl module [`Getopt::Long`](https://metacpan.org/pod/Getopt::Long)
+Perl module [**Getopt::Long**](https://metacpan.org/pod/Getopt::Long)
 without any external dependency, and additionally supports positional
 arguments and flexible help messages.
 
@@ -43,7 +43,7 @@ environment with the specified values. Value for `cutoff` will be
 updated if it is specified in command-line.
 
 The help message is automatically generated according to the option
-specification.
+specifications.
 
     ~\> Rscript foo.R --help
 
@@ -63,7 +63,7 @@ specification.
       --version
         Print version information and exit. 
 
-## Specifications
+## Specification
 
 Each specifier of command-line options consists of two parts: the name
 specification and the option specification.
@@ -73,16 +73,17 @@ specification and the option specification.
 Here `length|size|l` is a list of option names separated by `|`, where
 `length` is the main option name, and others are aliases. The remaining
 part (`i@{}`) is the option specification which defines the data mode,
-the storage structure, and the range of arguments.
+the storage type, and the range of the arguments.
 
-    [option name|alias name...]=[mode][structure][constraint]
+    [option name|alias name...]=[mode][type][constraint]
 
 ### The option name
 
 In a specification, there is a main option name. Multiple alias names
 are allowed. The main argument name must only contain letters, numbers,
-two characters of `_` and `.`. It must be a valid R object name. There
-is no naming restriction for alias names. In the following example:
+characters of `_` or `.` (but cannot start with `_`). It must be a valid
+R object name. There is no naming restriction for alias names. In the
+following example:
 
     length|size=i
 
@@ -112,52 +113,54 @@ single-letter flag.
     ~\> Rscript foo.R -l=12
     ~\> Rscript foo.R -l12
 
-Since the main argument name does not allow the character of `"-"`, for
-multi-word option, underline can be used to connect words while in the
-command-line interface, hyphen can be used.
+Since the main option name does not allow the character of `"-"`, for
+multi-word option names, underline can be used to connect words while in
+the command-line interface, hyphen can be used instead. For example, for
+the following specification,
 
     min_length_of_word=i
 
-then under command-line, this option can be set via (of cource
-`--min_length_of_word 10` also works):
+then under command-line, this option can be set via:
 
     ~\> Rscript foo.R --min-length-of-word 10
 
-### Data modee
+Of cource `--min_length_of_word 10` also works.
+
+### Data mode
 
 Four data modes are supported, which are logical, integer, numeric and
 character, encoded by a single-letter:
 
-- `l`, logical
-- `i`, integer
-- `f`, numeric
-- `s`, character
+- `l`, logical,
+- `i`, integer,
+- `f`, numeric,
+- `s`, character.
 
-For example, `verbose=l` is the same as `verbose!`. The configuration of
-logical options will be introduced in Section [Logical
-argument](#Logical_argument).
+For the logical mode, `verbose=l` is the same as `verbose!`. The
+configuration of logical options will be introduced in Section “Logical
+argument”.
 
-Particularly, for the integer mode, besides providing a normal decimal
-integer under the command-line, integers in the binary, octal, and
-hexadecimal forms.
+In particular, for the integer mode, besides providing a normal decimal
+integer as the option value under the command-line, integers can also be
+in the binary, octal, and hexadecimal forms.
 
     num=i
 
     ~\> Rscript foo.R --num 20
     ~\> Rscript foo.R --num 0b10100
-    ~\> Rscript foo.R --num 0o24
+    ~\> Rscript foo.R --num 0o24     # or --num 024
     ~\> Rscript foo.R --num 0x14
 
-### Where do the options go
+### Where do the arguments go
 
-Options will be imported into an environment as R variables. By default
-it is the environment where [`argitect()`](../reference/argitect.md) is
-called. The first name in option name specification is taken as the
-corresponding variable name. That is why we require the first name to be
-a valid R object. If the R variable is already defined with proper
-value, the corresponding option will have default value, and is then
-called an optional option that not mandatory to be specified on the
-command-line.
+Options with values from command-line arguments will be imported into an
+environment as R variables. By default it is the environment where
+[`argitect()`](../reference/argitect.md) is called. The first name in
+the option name specification is taken as the corresponding variable
+name. That is why we require the first option name to be a valid R
+object. If the R variable is already defined with a proper value, the
+corresponding option will have default value, and is then called an
+optional option that not mandatory to be specified on the command-line.
 
 ``` r
 
@@ -173,7 +176,7 @@ print(cutoff)
 print(verbose)
 ```
 
-In this example, `cutoff` already has a default value `0.05`, thus it is
+In this example, `cutoff` already has a default value `0.05`, then it is
 optional on the command-line.
 
     ~\> Rscript foo.R --number 2 --verbose
@@ -237,7 +240,7 @@ The negation of a logical option can be specified as one of:
     ~\> Rscript foo.R --not-verbose
 
 If a single letter flag is available for each logical option, they can
-be bundled to call.
+be bundled to specify.
 
 ``` r
 
@@ -298,11 +301,14 @@ argitect(
 
     ~\> Rscript foo.R -abc
 
-### Data structures of options
+If there is already an option `abc=i`, then `-abc` has the priority to
+match the `abc` option.
 
-There are three structure of option values: a single element, a
-vector-like object and an object of name-value pairs. Each structure has
-a special mark symbol represented.
+### Data storage type
+
+There are three storage type of option values: a single scalar element,
+a vector-like object and an object of name-value pairs. Each structure
+has a special mark symbol to represent.
 
 #### Scalar
 
@@ -312,8 +318,8 @@ ommited because it is the default symbol if not specified.
     size=i$
     size=i
 
-Logical options also correspond to logical scalars, their specification
-is one of:
+Logical options also correspond to logical scalars, the specification is
+one of:
 
     verbose=l
     verbose!
@@ -328,20 +334,20 @@ compatible with the corresponding specification.
 #### Vector
 
 Technically, in R, a scalar is a vector of length 1. However, here we
-discriminate these two scenarions. The symbol for vector/array is `@`,
-where a list of values can be specified after the option name.
+discriminate these two scenarios. The symbol for vector/array is `@`,
+where a set of values can be specified after the option name.
 
 ``` r
 
 argitect(
-    "size=i@", "size"
+    "size=i@", "Size of a cubic."
 )
 ```
 
     ~\> Rscript foo.R --size 1 2 3
 
 A positional option explicitely with
-[`{}`](https://rdrr.io/r/base/Paren.html) also accepts a list of values.
+[`{}`](https://rdrr.io/r/base/Paren.html) also accepts a set of values.
 
 ``` r
 
@@ -352,14 +358,19 @@ argitect(
 
     ~\> Rscript foo.R 255 10 10
 
-#### Hash
+`size=i@` and `size=i@{}` are identical.
+[`{}`](https://rdrr.io/r/base/Paren.html) is used to put constraints
+inside, which will be introduced in the next section.
 
-It is not proper to call it a hash since the option is stored as a list
-while not a hash. However, the **argitect** package is developed based
-on the Perl module **Getopt:Long** where `%` stands for hash. So here we
-still call it a hash to emphasize it contains name-value pairs.
+#### Hash/List
 
-The symbol for vector/array is `@`, where a list of name-value pairs are
+It is not proper to call it a hash since the option is stored as an R
+list structure while not a hash. However, the **argitect** package is
+developed based on the Perl module **Getopt:Long** where `%` is the
+symbol for hash. So here we still call it a hash to emphasize it
+contains name-value pairs.
+
+The symbol for hash is `%`, where a list of name-value pairs are
 specified after the option name.
 
 ``` r
@@ -371,24 +382,30 @@ argitect(
 
     ~\> Rscript foo.R --size a=1 b=2 c=3
 
+`size=i%` and `size=i%{}` are identical.
+
 ### Option constraint
 
-For the options in the structure of vector and hash, the amount of
+For the options in the structure of vectors and hashes, the amount of
 elements can be further controlled.
+
+The number of values for `size` is between 2 and 4:
 
 ``` r
 
 argitect(
-    "size=i@{2,3}", ""
+    "size=i@{2,4}", "size"
 )
 ```
+
+The number of values for `size` does not exceed 3:
 
     ~\> Rscript foo.R --size 1 2 3
 
 ``` r
 
 argitect(
-    "size=i@{,3}", ""
+    "size=i@{,3}", "size"
 )
 ```
 
@@ -396,28 +413,33 @@ argitect(
     ~\> Rscript foo.R --size 1 2 
     ~\> Rscript foo.R --size 1 2 3 
 
+The number of values for `size` is at least 3:
+
 ``` r
 
 argitect(
-    "size=i@{3,}", ""
+    "size=i@{3,}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size 1 2 3 
     ~\> Rscript foo.R --size 1 2 3 4
 
-A set of names can be set in [`{}`](https://rdrr.io/r/base/Paren.html)
+A set of names can be set in [`{}`](https://rdrr.io/r/base/Paren.html),
 then the option will be a named vector. In the next example, `size` can
 only accept two elements.
 
 ``` r
 
 argitect(
-    "size=i@{foo,bar}", ""
+    "size=i@{foo,bar}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1 bar=2
+
+Then on the R environment, the value of `size` is
+`c(foo = 1L, bar = 2L)`.
 
 Adding a tailing comma allows more self-defined names besides those
 having been provided.
@@ -425,36 +447,39 @@ having been provided.
 ``` r
 
 argitect(
-    "size=i@{foo,bar,}", ""
+    "size=i@{foo,bar,}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1 bar=2 abs=3 xyz=4
 
-Similar for hash, the following example only allows two elements for
-size. The command-line usages is the same, but here `size` has the value
-of `list(foo = , bar = )`, while in previous vector-based example,
-`size` has the value of `c(foo = , bar = )`.
+Similarly for hash, the following example only allows two elements for
+`size`.
 
 ``` r
 
 argitect(
-    "size=i%{foo,bar}", ""
+    "size=i%{foo,bar}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1 bar=2
 
+The command-line usages is the same as `i@{foo,bar}`, but here `size`
+has the value of `list(foo = 1L, bar = 2L)`.
+
+Adding a tailing comma also allows more self-defined names.
+
 ``` r
 
 argitect(
-    "size=i%{foo,bar,}", ""
+    "size=i%{foo,bar,}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1 bar=2 abs=3 xyz=4
 
-Being different from vectors, elements in a hash (or a list) can in
+Being different from vectors, elements in a hash (or a list) can be in
 different modes. The the data mode can be defined as `i%` which globally
 controls the data mode of all its elements. Also data mode can be set
 for individual elements.
@@ -465,79 +490,142 @@ has its own mode `f` and `bar` inherits the global one.
 ``` r
 
 argitect(
-    "size=i%{foo=f,bar}", ""
+    "size=i%{foo=f,bar}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1.5 bar=2
 
 If the data mode is not specified on the global level, then every
-individual sub-option should explicitely specify its data mode.
+individual sub-argument should explicitely specify its data mode.
 
 ``` r
 
 argitect(
-    "size=%{foo=f,bar=i}", ""
+    "size=%{foo=f,bar=i}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1.5 bar=2
 
 Besides sub-argument as scalars, they can also be vectors. In the next
-example, sub-argument `foo` expects a list of integers. For the list of
+example, sub-argument `foo` expects a set of integers. For the list of
 values assign to a sub-argument, elements should be separated by one of
 `","`, `";"`, `":"`, `"|"` and `"/"` without spaces.
 
 ``` r
 
 argitect(
-    "size=%{foo=i@,bar=f}", ""
+    "size=%{foo=i@,bar=f}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size foo=1,2,3,4 bar=1.5
 
-Similarly, constraints of sub-argument can be set as follows.
+Similarly, constraints of sub-argument can be set as follows, but
+constraints as a set of names are not allowed for sub-arguments (only
+allows numeric constraints).
 
 ``` r
 
 argitect(
-    "size=%{foo=i@{2,3},bar=s@{1,2}}", ""
+    "size=%{foo=i@{2,3},bar=s@{1,2}}", "size"
 )
 ```
 
-For positional options, one or two numbers can be used to specify the
-ranges of the number of values.
+Sub-argument allows alias names. There is no restriction of how to name
+them.
 
 ``` r
 
 argitect(
-    "size=i#{3}", ""
+    "size=i%{foo|bar|xyz", "size"
+)
+```
+
+    ~\> Rscript foo.R --size foo=1
+    ~\> Rscript foo.R --size bar=1
+    ~\> Rscript foo.R --size xyz=1
+
+On the R side, the value of `size` is always `list(foo = 1L)`.
+
+For positional options, one (e.g. `{3}`, `{3,}`, `{,3}`) or two numbers
+(`{2,4}`) can be used to specify the ranges of the number of values.
+
+``` r
+
+argitect(
+    "size=i#{3}", "size"
 )
 ```
 
     ~\> Rscript foo.R --size 1 2 3
 
-In the option specification, names are also allowed.
+In the positional option specification, names are also allowed.
 
 ``` r
 
 argitect(
-    "rgb=i#{red, green, blue}", ""
+    "rgb=i#{red, green, blue}", "RGB channels."
 )
 ```
 
     ~\> Rscript foo.R 255 128 128
 
 In above example, `rgb` is stored as
-`c(red = 255L, green = 128L, blue = 128L)`.
+`c(red = 255L, green = 128L, blue = 128L)`. Note positional option does
+not allow tailing comma.
 
-Note positional option does not allow tailing comma.
+Positional options can also be put as sub-arguments. Following are
+examples:
+
+``` r
+
+argitect(
+    "size=%{foo=i#, bar=s}", "size"
+)
+```
+
+    ~\> Rscript foo.R --size 1 bar=a
+
+``` r
+
+argitect(
+    "size=%{foo=i#{2}, bar=s@}", "size"
+)
+```
+
+    ~\> Rscript foo.R --size 1 2 bar=a,b,c
+    ~\> Rscript foo.R --size 1,2 bar=a,b,c
+    ~\> Rscript foo.R --size foo=1,2 bar=a,b,c
+
+``` r
+
+argitect(
+    "size=%{foo=i#{2}, bar=s#{}}", "size"
+)
+```
+
+    ~\> Rscript foo.R --size 1 2 a b c
+    ~\> Rscript foo.R --size 1,2 a,b,c
+    ~\> Rscript foo.R --size foo=1,2 bar=a,b,c
+
+``` r
+
+argitect(
+    "size=%{foo=i#{2}, bar=i#{3}}", "size"
+)
+```
+
+    ~\> Rscript foo.R --size 1 2 4 5 6
+    ~\> Rscript foo.R --size 1,2 4,5,6
+
+Then `size` has the value `list(foo = 1:2, bar = 4:5)`.
 
 ### Positional options
 
 Positional options can be put as the first few options or the last few
-options in the specifications.
+options in the specification.
 
 ``` r
 

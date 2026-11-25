@@ -30,7 +30,7 @@ Then from command-line, standard input can be set via `-` or `stdin`:
     hello
 
 `input` can also be set as a positional argument, then no argument name
-is needed to specify on the command-line.
+is needed to specify in the command-line.
 
 ``` r
 
@@ -46,11 +46,11 @@ if(input %in% c("-", "stdin")) {
 }
 ```
 
-    ~\> cat main.R | Rscript pipe.R -
-    ~\> cat main.R | Rscript pipe.R stdin
-
 `main.R` is the script we used in vignette [Dispatching to
 sub-commands](sub_commands.md).
+
+    ~\> cat main.R | Rscript pipe.R -
+    ~\> cat main.R | Rscript pipe.R stdin
 
     library(argitect)
 
@@ -58,3 +58,11 @@ sub-commands](sub_commands.md).
         system.file("extdata", "sub1.R", package = "argitect"), "This is the description of sub command 1, which will be a long long long text.",
         system.file("extdata", "sub2.R", package = "argitect"), "This is the description of sub command 2, which will be a long long long text."
     )
+
+\
+\
+\
+\
+\
+\
+\

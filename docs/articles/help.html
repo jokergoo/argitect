@@ -61,7 +61,7 @@
       <h1>Customizing help messages</h1>
                         <h4 data-toc-skip class="author">Zuguang Gu (<a href="mailto:guzuguang@suat-sz.edu.cn" class="email">guzuguang@suat-sz.edu.cn</a>)</h4>
             
-            <h4 data-toc-skip class="date">2026-11-24</h4>
+            <h4 data-toc-skip class="date">2026-11-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/jokergoo/argitect/blob/HEAD/vignettes/help.Rmd" class="external-link"><code>vignettes/help.Rmd</code></a></small>
       <div class="d-none name"><code>help.Rmd</code></div>
@@ -72,11 +72,11 @@
 <pre><code><span><span class="co">## Warning: package 'knitr' was built under R version 4.6.1</span></span></code></pre>
 <hr>
 <div class="section level2">
-<h2 id="automatically-generated-help">Automatically generated help<a class="anchor" aria-label="anchor" href="#automatically-generated-help"></a>
+<h2 id="automatically-generat-help-message">Automatically generat help message<a class="anchor" aria-label="anchor" href="#automatically-generat-help-message"></a>
 </h2>
 <p>The help message is automatically generated according to the argument
 specifications. The following code shows the help message from scalar
-options.</p>
+arguments.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"number=i"</span>, <span class="st">"Number of items."</span>,</span>
@@ -84,14 +84,14 @@ options.</p>
 <span>    <span class="st">"verbose!"</span>, <span class="st">"Print messages."</span>,</span>
 <span>    <span class="st">"file=s#"</span>,  <span class="st">"Input file."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For each option, it prints the full option name (as well as the alias
-names if they are provided), the data mode, the flag letter (if the
-first letter is unique). Positional argument name is marked by
+<p>For each argument, it prints the full argumnet name (as well as the
+alias names if they are provided), the data mode, the flag letter (if
+the first letter is unique). Positional argument name is marked by
 <code>&lt;&gt;</code> which means the name is not necessary to specify.
-Positional arguments are explicitely added to the “Usage” if it is the
-first or the last option specified in <code><a href="../reference/argitect.html">argitect()</a></code>.</p>
-<p>Two additional options <code>help</code> and <code>verbose</code> are
-inserted to the end.</p>
+Positional argument is explicitely added to “Usage” if it is the first
+or the last option specified in <code><a href="../reference/argitect.html">argitect()</a></code>.</p>
+<p>Two additional arguments <code>help</code> and <code>verbose</code>
+are inserted to the end.</p>
 <pre><code>Usage: Rscript foo.R [options] [file]
 
 Options:
@@ -108,7 +108,7 @@ Options:
     Print help message and exit. 
   --version
     Print version information and exit. </code></pre>
-<p>For the array or hash options, the data mode is adjusted
+<p>For the vector or hash arguments, the data mode text is adjusted
 accordingly.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
@@ -129,8 +129,8 @@ Options:
     Print help message and exit. 
   --version, -v
     Print version information and exit. </code></pre>
-<p>When there are constraints on the array options, the range is added
-to the data mode part.</p>
+<p>When there are constraints on the vector arguments, the range is
+added to the data mode text.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"number1=i@{2,3}"</span>, <span class="st">"Number of items."</span>,</span>
@@ -168,7 +168,7 @@ Options:
     Number of items. 
   --number2 [foo=integer, bar=integer, ...]
     Number of items. 
-  &lt;file&gt; [foo=character, bar=character]
+  &lt;file&gt; [&lt;foo&gt;=character, &lt;bar&gt;=character]
     Input files. 
   --help, -h
     Print help message and exit. 
@@ -176,8 +176,8 @@ Options:
     Print version information and exit. </code></pre>
 <p>For <code>%</code> with pre-defined names, see <a href="#Documenting_sub-arguments">Documenting sub-arguments</a>
 section.</p>
-<p>If default values for options are provided, they are also added to
-the help message.</p>
+<p>If default values for some arguments are already provided, they are
+also added to the help message.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">number</span> <span class="op">=</span> <span class="fl">2L</span></span>
 <span><span class="va">cutoff</span> <span class="op">=</span> <span class="fl">0.05</span></span>
@@ -212,7 +212,7 @@ Options:
 <h2 id="one-column-and-two-column-styles">One-column and two-column styles<a class="anchor" aria-label="anchor" href="#one-column-and-two-column-styles"></a>
 </h2>
 <p>The default style is one-column. <code>help_style</code> can be set
-to <code>two-column</code> so that in the two-column layout, option
+to <code>two-column</code> so that in the two-column layout, argument
 names are in the left column and descriptions are in the second
 column.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
@@ -234,9 +234,9 @@ Options:
 <p>The style can also be set globally:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect_options.html">argitect_options</a></span><span class="op">(</span><span class="st">"help_style"</span> <span class="op">=</span> <span class="st">"two-column"</span><span class="op">)</span></span></code></pre></div>
-<p>The option name column can be controlled by adding a second value to
-<code>help_width</code>, which controls the width of the first column in
-the two-column style.</p>
+<p>The argument name column can be controlled by adding a second value
+to <code>help_width</code>, which controls the width of the first column
+in the two-column style.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"number|a|b|c|d|e|f|g|h|i|j|k|l|m|n=i"</span>, <span class="st">"Number of items."</span>,</span>
@@ -259,13 +259,13 @@ Options:
 <div class="section level2">
 <h2 id="sections">Sections<a class="anchor" aria-label="anchor" href="#sections"></a>
 </h2>
-<p>Options can be grouped. A separator line (a name consisting only of
+<p>Arguments can be grouped. A separator line (a name consisting only of
 <code>-</code>, <code>=</code>, <code>+</code>, <code>#</code> or
 <code>%</code>) starts a new section. Note <code>help</code> and
 <code>version</code> will be added to the last section. If you only want
-to <code>help</code> and <code>version</code> as the last section, then
+<code>help</code> and <code>version</code> in the last section, then
 simply create an section with the separator line but with no other
-options.</p>
+argument.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"number=i"</span>, <span class="st">"Number of items."</span>,</span>
@@ -306,8 +306,8 @@ an extra specification in the form <code>parent$sub</code>:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"arg=i%{foo, bar}"</span>, <span class="st">"This is a hash option."</span>,</span>
-<span>    <span class="st">"arg$foo"</span>, <span class="st">"The foo part."</span>,</span>
-<span>    <span class="st">"arg$bar"</span>, <span class="st">"The bar part."</span></span>
+<span>    <span class="st">"arg$foo"</span>, <span class="st">"The foo part."</span>,  <span class="co"># only for documenting</span></span>
+<span>    <span class="st">"arg$bar"</span>, <span class="st">"The bar part."</span>   <span class="co"># only for documenting</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <pre><code>Usage: Rscript foo.R [options]
 
@@ -324,7 +324,7 @@ Options:
     Print help message and exit. 
   --version, -v
     Print version information and exit. </code></pre>
-<p>If sub-argument is an array, the corresponding mode description is
+<p>If sub-argument is a vector, the corresponding mode description is
 adjusted.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
@@ -401,11 +401,12 @@ interpolate and to insert into the template.</p>
 <span><span class="st"></span></span>
 <span><span class="st">Questions, please contact {{ col_magenta(style_underline(style_italic('your.name@email'))) }}</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="output.png" class="r-plt" alt="" width="511" style="display: block; margin: auto;"></p>
-<p>The width of the option column is computed per section, so options
-that are not separated by a blank line are aligned together.</p>
-<p>If enough space is preserved before the second line of the text
-block, the text is automatically aligned.</p>
+<p><img src="output.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
+<p>The width of the argument column is computed per section, so
+arguments that are not separated by a blank line are aligned
+together.</p>
+<p>If enough space is preserved before the second line of the
+description text block, the text is automatically aligned.</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span><span class="st">"</span></span>
 <span><span class="st">Usage: Rscript foo.R [options]</span></span>
@@ -419,10 +420,10 @@ block, the text is automatically aligned.</p>
                                count. This is a count. This is a count.</code></pre>
 </div>
 <div class="section level2">
-<h2 id="head-foot-and-width">Head, foot and width<a class="anchor" aria-label="anchor" href="#head-foot-and-width"></a>
+<h2 id="head-and-foot">Head and foot<a class="anchor" aria-label="anchor" href="#head-and-foot"></a>
 </h2>
 <p><code>help_head</code> and <code>help_foot</code> are printed before
-and after the option list, in the template as well as in the generated
+and after the argument list, in the template as well as in the generated
 layout.</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
@@ -441,6 +442,7 @@ Options:
     Print help message and exit. 
   --version, -v
     Print version information and exit. 
+
 This is the foot of the help message.</code></pre>
 </div>
 <div class="section level2">
@@ -471,14 +473,13 @@ other attached packages:
 loaded via a namespace (and not attached):
  [1] digest_0.6.39       desc_1.4.3          R6_2.6.1           
  [4] GlobalOptions_0.1.4 fastmap_1.2.0       xfun_0.62          
- [7] cachem_1.1.0        htmltools_0.5.9     png_0.1-9          
-[10] rmarkdown_2.32      lifecycle_1.0.5     cli_3.6.6          
-[13] sass_0.4.10         pkgdown_2.2.1       textshaping_1.0.5  
-[16] jquerylib_0.1.4     systemfonts_1.3.2   compiler_4.6.0     
-[19] tools_4.6.0         ragg_1.5.2          bslib_0.12.0       
-[22] evaluate_1.0.5      yaml_2.3.12         otel_0.3.0         
-[25] jsonlite_2.0.0      rlang_1.3.0         fs_2.1.0           
-[28] htmlwidgets_1.6.4  </code></pre>
+ [7] cachem_1.1.0        htmltools_0.5.9     rmarkdown_2.32     
+[10] lifecycle_1.0.5     cli_3.6.6           sass_0.4.10        
+[13] pkgdown_2.2.1       textshaping_1.0.5   jquerylib_0.1.4    
+[16] systemfonts_1.3.2   compiler_4.6.0      tools_4.6.0        
+[19] ragg_1.5.2          bslib_0.12.0        evaluate_1.0.5     
+[22] yaml_2.3.12         otel_0.3.0          jsonlite_2.0.0     
+[25] rlang_1.3.0         fs_2.1.0            htmlwidgets_1.6.4  </code></pre>
 <script>
 var elements = document.getElementsByTagName("pre");
 for(var i = 0; i < elements.length; i ++ ) {
