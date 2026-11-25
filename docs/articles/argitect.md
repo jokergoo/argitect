@@ -631,7 +631,7 @@ options in the specification.
 
 argitect(
     "size=i", "Size.",
-    "cutoff=c", "Cutoff.",
+    "cutoff=f", "Cutoff.",
     "file=s#", "File"
 )
 ```
@@ -644,11 +644,51 @@ Or
 argitect(
     "file=s#", "File"，
     "size=i", "Size.",
-    "cutoff=c", "Cutoff."
+    "cutoff=f", "Cutoff."
 )
 ```
 
     ~\> Rscript foo.R input.txt --size 10 --cutoff 0.01 
+
+## Specify a configuration file
+
+All command-line arguments can be put into a configuration file and set
+it as the only argument for the script. Two configuration formats are
+supported: the json format and the yaml format. The configuration is
+specified in the following ways:
+
+    Rscript foo.R @json=conf.json
+    Rscript foo.R @yaml=conf.yaml
+
+For the following example:
+
+``` r
+
+argitect(
+    "number=i", "Number.",
+    "cutoff=f", "Cutoff.",
+    "verbose!", "Verbose.",
+    "tag=@s",   "Tags"
+)
+```
+
+The json configuration file:
+
+``` js
+{ "number": 5, "cutoff": 0.01, "verbose": true, "tag": ["a", "b"] }
+```
+
+And the yaml configuration file looks like:
+
+``` yaml
+number: 7
+cutoff: 0.5
+verbose: false
+tag: [x, yy, z]
+```
+
+`-` and `stdin` can be used for configuration file, meaning
+configurations are read from standard input.
 
 ## Session info
 

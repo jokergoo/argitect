@@ -59,6 +59,27 @@
 #' 
 #' For more details, please refer to the vignette.
 #'
+#' ## Configuration file
+#'
+#' Besides giving every option on the command line, all of them can be put in a
+#' JSON or YAML file and passed as the single command-line argument
+#' `@json=conf.json` or `@yaml=conf.yaml`:
+#'
+#' ```
+#' Rscript foo.R @json=conf.json
+#' Rscript foo.R @yaml=conf.yaml
+#' ```
+#'
+#' The file must contain an object whose keys are the argument names. `-` or
+#' `stdin` instead of a file name reads it from standard input. The
+#' `jsonlite` and `yaml` packages are needed, respectively.
+#'
+#' ## help and version
+#'
+#' `--help` and `--version` are added automatically. Defining `help` or
+#' `version` in the specification replaces the generated one. The version
+#' string is taken from the `version` variable in `envir`, then from `VERSION`.
+#'
 #' @return Invisibly, a list of the parsed argument objects. Parsed values are
 #'   also exported to `envir` as variables named after the first specification
 #'   name.
@@ -91,7 +112,10 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
     .argitect_ctx$help_width = help_width
     on.exit({ .argitect_ctx$help_width = old_help_width }, add = TRUE)
 
-    if(is.null(get_scriptname())) {
+    # an explicit argv_str means "testing": never quit the R session
+    TEST_MODE = !is.null(argv_str)
+
+    if(TEST_MODE || is.null(get_scriptname())) {
         IS_UNDER_COMMAND_LINE = FALSE
     } else {
         IS_UNDER_COMMAND_LINE = TRUE
@@ -103,28 +127,27 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
 
     spec_info = parse_specification(list(...))
 
-    # reserved options are rejected before building (and before any warning)
-    reserved_hit = any(vapply(spec_info$spec[, 1], function(s) {
-        any(spec_names(s) %in% DEFAULT_ARGUMENTS)
-    }, logical(1)))
-    if(reserved_hit) {
-        stop_wrap("`help` and `version` are reserved options. Please do not use them.")
-    }
-
     # build argument objects
     arguments = list()
     for(i in seq_len(nrow(spec_info$spec))) {
-        a = SingleArgument(spec = spec_info$spec[i, 1], desc = spec_info$spec[i, 2], envir = envir)
+        nm1 = spec_names(spec_info$spec[i, 1])[1]
+        # a variable named "help"/"version" is the help/version switch or the
+        # version string, not a logical default, so no coercion warning here
+        a = if(nm1 %in% DEFAULT_ARGUMENTS) {
+            suppressWarnings(SingleArgument(spec = spec_info$spec[i, 1],
+                desc = spec_info$spec[i, 2], envir = envir))
+        } else {
+            SingleArgument(spec = spec_info$spec[i, 1],
+                desc = spec_info$spec[i, 2], envir = envir)
+        }
+        if(nm1 %in% DEFAULT_ARGUMENTS && is_logical(a)) {
+            a$has_default = TRUE
+            a$default = FALSE
+            a$is_mandatory = FALSE
+        }
         arguments[[length(arguments) + 1]] = a
     }
     names(arguments) = vapply(arguments, function(a) a$arg_name[1], character(1))
-
-    # argument names and aliases must be unique
-    all_names = unlist(lapply(arguments, function(a) a$arg_name), use.names = FALSE)
-    dup = unique(all_names[duplicated(all_names)])
-    if(length(dup)) {
-        stop_wrap("Duplicated argument name or alias: ", paste(dup, collapse = ", "), ".")
-    }
 
     # attach sub-option descriptions (spec of the form "name$sub")
     if(length(spec_info$sub_opt)) {
@@ -161,19 +184,35 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
         }
     }
 
-    # add reserved help / version
-    arguments$help = suppressWarnings(
-        SingleArgument(spec = "help", desc = "Print help message and exit.", envir = envir))
-    arguments$version = suppressWarnings(
-        SingleArgument(spec = "version", desc = "Print version information and exit.", envir = envir))
+    # add the auto-generated help / version unless the user defined them
+    added = character(0)
+    if(!"help" %in% names(arguments)) {
+        arguments$help = suppressWarnings(
+            SingleArgument(spec = "help", desc = "Print help message and exit.", envir = envir))
+        added = c(added, "help")
+    }
+    if(!"version" %in% names(arguments)) {
+        arguments$version = suppressWarnings(
+            SingleArgument(spec = "version", desc = "Print version information and exit.", envir = envir))
+        added = c(added, "version")
+    }
+
+    # argument names and aliases must be unique (including the auto help/version)
+    all_names = unlist(lapply(arguments, function(a) a$arg_name), use.names = FALSE)
+    dup = unique(all_names[duplicated(all_names)])
+    if(length(dup)) {
+        stop_wrap("Duplicated argument name or alias: ", paste(dup, collapse = ", "), ".")
+    }
 
     # single-letter flags
     arguments = add_short_flags(arguments)
 
-    # append help / version to the last option group
-    n_arg = length(arguments)
-    spec_info$opt_group[[length(spec_info$opt_group)]] =
-        c(spec_info$opt_group[[length(spec_info$opt_group)]], n_arg - 1, n_arg)
+    # append the auto-generated help / version to the last option group
+    if(length(added)) {
+        spec_info$opt_group[[length(spec_info$opt_group)]] =
+            c(spec_info$opt_group[[length(spec_info$opt_group)]],
+              which(names(arguments) %in% added))
+    }
 
     # explain mode: only print the specification explanation, no parsing
     if(isTRUE(explain)) {
@@ -189,6 +228,22 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
         if(length(argv) == 1 && argv[1] == "") argv = character(0)
     }
 
+    # "@json=file" / "@yaml=file" as the single command-line argument:
+    # all options are read from that config file instead
+    if(any(grepl("^@(json|yaml)=", argv))) {
+        err = NULL
+        tryCatch({
+            argv = resolve_config_argv(argv, arguments)
+        }, error = function(e) err <<- conditionMessage(e))
+        if(!is.null(err)) {
+            if(IS_UNDER_COMMAND_LINE && is.null(argitect_options("__script_name__"))) {
+                report_error(err, arguments, spec_info, help_head, help_foot, help_style)
+            } else {
+                stop_wrap(err)
+            }
+        }
+    }
+
     config = argitect_options("config")
 
     err = NULL
@@ -200,12 +255,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
 
     if(!is.null(err)) {
         if(IS_UNDER_COMMAND_LINE && is.null(argitect_options("__script_name__"))) {
-            cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
-            print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
-                template = spec_info$template,
-                style = help_style, opt_group = spec_info$opt_group,
-                opt_group_desc = spec_info$opt_group_desc)
-            q(save = "no", status = 127)
+            report_error(err, arguments, spec_info, help_head, help_foot, help_style)
         } else {
             stop_wrap(err)
         }
@@ -248,13 +298,8 @@ argitect = function(..., help_head = NULL, help_foot = NULL,
     })
 
     if(!is.null(err)) {
-        if(IS_UNDER_COMMAND_LINE) {
-            cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
-            print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
-                template = spec_info$template,
-                style = help_style, opt_group = spec_info$opt_group,
-                opt_group_desc = spec_info$opt_group_desc)
-            q(save = "no", status = 127)
+        if(IS_UNDER_COMMAND_LINE && is.null(argitect_options("__script_name__"))) {
+            report_error(err, arguments, spec_info, help_head, help_foot, help_style)
         } else {
             stop_wrap(err)
         }
@@ -479,6 +524,22 @@ looks_like_option = function(tok) {
 }
 
 
+# suggest the closest known option name for an unrecognized one
+suggest_option = function(name, lookup) {
+    keys = lookup$all_keys
+    if(length(keys) == 0) return("")
+    key = norm_key(name)
+    if(!nzchar(key)) return("")
+    d = utils::adist(key, keys)[1, ]
+    k = which.min(d)
+    if(!length(k)) return("")
+    if(d[k] <= max(1, nchar(key) %/% 3)) {
+        paste0(" Did you mean '--", keys[k], "'?")
+    } else {
+        ""
+    }
+}
+
 # resolve a long option name (exact -> negation -> unique prefix)
 resolve_long = function(name, arguments, lookup, ignore_case) {
     key = norm_key(name, ignore_case)
@@ -498,7 +559,7 @@ resolve_long = function(name, arguments, lookup, ignore_case) {
         stop_wrap("Option '--", name, "' is ambiguous.")
     }
 
-    stop_wrap("Unknown option: '--", name, "'.")
+    stop_wrap("Unknown option: '--", name, "'.", suggest_option(name, lookup))
 }
 
 
@@ -512,7 +573,7 @@ resolve_short = function(body, arguments, lookup, bundling, ignore_case) {
         cand = lookup$all_keys[startsWith(lookup$all_keys, key)]
         if(length(cand) == 1) return(list(index = lookup$long[[cand]], negate = FALSE, attached = NULL))
         if(length(cand) > 1) stop_wrap("Option '-", body, "' is ambiguous.")
-        stop_wrap("Unknown option: '-", body, "'.")
+        stop_wrap("Unknown option: '-", body, "'.", suggest_option(body, lookup))
     }
 
     # multi character: long name / abbreviation first
@@ -541,7 +602,7 @@ resolve_short = function(body, arguments, lookup, bundling, ignore_case) {
         }
     }
 
-    stop_wrap("Unknown option: '-", body, "'.")
+    stop_wrap("Unknown option: '-", body, "'.", suggest_option(body, lookup))
 }
 
 
@@ -814,6 +875,78 @@ assign_hash = function(a, vals, value_sep = ",") {
 
 
 # main argv parser
+# read a JSON/YAML config file (or stdin for "-"/"stdin") and turn it into
+# a vector of command-line tokens
+resolve_config_argv = function(argv, arguments) {
+    if(length(argv) != 1) {
+        stop_wrap("When '@json=file' or '@yaml=file' is used, it must be the only command-line argument.")
+    }
+    type = sub("^@(json|yaml)=.*$", "\\1", argv[1])
+    file = sub("^@[a-z]+=", "", argv[1])
+
+    txt = if(file %in% c("-", "stdin")) {
+        readLines("stdin", warn = FALSE)
+    } else {
+        if(!file.exists(file)) stop_wrap("Config file '", file, "' does not exist.")
+        readLines(file, warn = FALSE)
+    }
+    content = paste(txt, collapse = "\n")
+
+    cfg_list = if(type == "json") {
+        if(!requireNamespace("jsonlite", quietly = TRUE)) {
+            stop_wrap("Package 'jsonlite' is required for '@json=file'.")
+        }
+        jsonlite::fromJSON(content, simplifyVector = FALSE)
+    } else {
+        if(!requireNamespace("yaml", quietly = TRUE)) {
+            stop_wrap("Package 'yaml' is required for '@yaml=file'.")
+        }
+        yaml::yaml.load(content)
+    }
+    if(!is.list(cfg_list) || is.null(names(cfg_list))) {
+        stop_wrap("The config file should contain a named list (an object).")
+    }
+
+    config_to_argv(cfg_list, arguments)
+}
+
+
+# convert a parsed config list into command-line tokens
+config_to_argv = function(cfg_list, arguments) {
+    argv = character(0)
+    for(nm in names(cfg_list)) {
+        v = cfg_list[[nm]]
+        if(is.null(v)) next
+        key = paste0("--", gsub("_", "-", nm))
+        a = arguments[[nm]]
+        if(is.null(a)) stop_wrap("Unknown key '", nm, "' in the config file.")
+        sv = a$spec_value
+
+        if(sv$arg_type == "$" && sv$arg_mode == "l") {
+            if(isTRUE(v)) {
+                argv = c(argv, key)
+            } else if(isFALSE(v) && isTRUE(sv$negatable)) {
+                argv = c(argv, paste0("--no-", gsub("_", "-", nm)))
+            }
+            next
+        }
+
+        if(sv$arg_type == "%") {
+            if(!is.list(v) || is.null(names(v))) {
+                stop_wrap("Key '", nm, "' in the config file should be an object (name=value pairs).")
+            }
+            for(k in names(v)) {
+                argv = c(argv, key, paste0(k, "=", paste(as.character(v[[k]]), collapse = ",")))
+            }
+            next
+        }
+
+        argv = c(argv, key, as.character(unlist(v)))
+    }
+    argv
+}
+
+
 parse_argv = function(arguments, argv, config = NULL, value_sep = ",") {
     if(is.null(config)) config = character(0)
 
@@ -1174,11 +1307,34 @@ export_to_env = function(arguments, envir = parent.frame()) {
 }
 
 
+# report a parse/validation error: the error message, a blank line, then the
+# full help message. Only used when the script runs from the command line.
+report_error = function(err, arguments, spec_info, help_head, help_foot, help_style) {
+    cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
+    cat("\n", file = stderr())
+    print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
+        template = spec_info$template,
+        style = help_style, opt_group = spec_info$opt_group,
+        opt_group_desc = spec_info$opt_group_desc)
+    q(save = "no", status = 127)
+}
+
+
 print_version_msg = function(envir, file = stdout()) {
-    if(exists("VERSION", envir = envir, inherits = FALSE)) {
-        cat(as.character(get("VERSION", envir = envir, inherits = FALSE)), file = file)
-    } else {
+    v = NULL
+    for(nm in c("version", "VERSION")) {
+        if(exists(nm, envir = envir, inherits = FALSE)) {
+            x = get(nm, envir = envir, inherits = FALSE)
+            if(!is.logical(x)) {
+                v = x
+                break
+            }
+        }
+    }
+    if(is.null(v)) {
         cat("No version information is found in the script.", file = file)
+    } else {
+        cat(as.character(v), file = file)
     }
     cat("\n", file = file)
 }

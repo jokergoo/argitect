@@ -556,7 +556,7 @@ few options in the specification.</p>
 <div class="sourceCode" id="cb75"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
 <span>    <span class="st">"size=i"</span>, <span class="st">"Size."</span>,</span>
-<span>    <span class="st">"cutoff=c"</span>, <span class="st">"Cutoff."</span>,</span>
+<span>    <span class="st">"cutoff=f"</span>, <span class="st">"Cutoff."</span>,</span>
 <span>    <span class="st">"file=s#"</span>, <span class="st">"File"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <pre><code>~\&gt; Rscript foo.R --size 10 --cutoff 0.01 input.txt</code></pre>
@@ -564,15 +564,42 @@ few options in the specification.</p>
 <div class="sourceCode" id="cb77"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" tabindex="-1"></a><span class="fu">argitect</span>(</span>
 <span id="cb77-2"><a href="#cb77-2" tabindex="-1"></a>    <span class="st">"file=s#"</span>, <span class="st">"File"</span>，</span>
 <span id="cb77-3"><a href="#cb77-3" tabindex="-1"></a>    <span class="st">"size=i"</span>, <span class="st">"Size."</span>,</span>
-<span id="cb77-4"><a href="#cb77-4" tabindex="-1"></a>    <span class="st">"cutoff=c"</span>, <span class="st">"Cutoff."</span></span>
+<span id="cb77-4"><a href="#cb77-4" tabindex="-1"></a>    <span class="st">"cutoff=f"</span>, <span class="st">"Cutoff."</span></span>
 <span id="cb77-5"><a href="#cb77-5" tabindex="-1"></a>)</span></code></pre></div>
 <pre><code>~\&gt; Rscript foo.R input.txt --size 10 --cutoff 0.01 </code></pre>
 </div>
 </div>
 <div class="section level2">
+<h2 id="specify-a-configuration-file">Specify a configuration file<a class="anchor" aria-label="anchor" href="#specify-a-configuration-file"></a>
+</h2>
+<p>All command-line arguments can be put into a configuration file and
+set it as the only argument for the script. Two configuration formats
+are supported: the json format and the yaml format. The configuration is
+specified in the following ways:</p>
+<pre><code>Rscript foo.R @json=conf.json
+Rscript foo.R @yaml=conf.yaml</code></pre>
+<p>For the following example:</p>
+<div class="sourceCode" id="cb80"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/argitect.html">argitect</a></span><span class="op">(</span></span>
+<span>    <span class="st">"number=i"</span>, <span class="st">"Number."</span>,</span>
+<span>    <span class="st">"cutoff=f"</span>, <span class="st">"Cutoff."</span>,</span>
+<span>    <span class="st">"verbose!"</span>, <span class="st">"Verbose."</span>,</span>
+<span>    <span class="st">"tag=@s"</span>,   <span class="st">"Tags"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The json configuration file:</p>
+<div class="sourceCode" id="cb81"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb81-1"><a href="#cb81-1" tabindex="-1"></a>{ <span class="st">"number"</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="st">"cutoff"</span><span class="op">:</span> <span class="fl">0.01</span><span class="op">,</span> <span class="st">"verbose"</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span> <span class="st">"tag"</span><span class="op">:</span> [<span class="st">"a"</span><span class="op">,</span> <span class="st">"b"</span>] }</span></code></pre></div>
+<p>And the yaml configuration file looks like:</p>
+<div class="sourceCode" id="cb82"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb82-1"><a href="#cb82-1" tabindex="-1"></a><span class="fu">number</span><span class="kw">:</span><span class="at"> </span><span class="dv">7</span></span>
+<span id="cb82-2"><a href="#cb82-2" tabindex="-1"></a><span class="fu">cutoff</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.5</span></span>
+<span id="cb82-3"><a href="#cb82-3" tabindex="-1"></a><span class="fu">verbose</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb82-4"><a href="#cb82-4" tabindex="-1"></a><span class="fu">tag</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">x</span><span class="kw">,</span><span class="at"> yy</span><span class="kw">,</span><span class="at"> z</span><span class="kw">]</span></span></code></pre></div>
+<p><code>-</code> and <code>stdin</code> can be used for configuration
+file, meaning configurations are read from standard input.</p>
+</div>
+<div class="section level2">
 <h2 id="session-info">Session info<a class="anchor" aria-label="anchor" href="#session-info"></a>
 </h2>
-<div class="sourceCode" id="cb79"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb83"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <pre><code>R version 4.6.0 (2026-04-24)
 Platform: aarch64-apple-darwin23

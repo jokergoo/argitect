@@ -144,7 +144,29 @@ octal (e.g. <code>0123</code>), and decimal.</p>
 </ul><p>If a variable with the first name already exists in <code>envir</code> (and is not a
 function), it is used as the default value and the option becomes optional.
 Logical options always default to <code>FALSE</code>.</p>
-<p>For more details, please refer to the vignette.</p>
+<p>For more details, please refer to the vignette.</p><div class="section">
+<h3 id="configuration-file">Configuration file<a class="anchor" aria-label="anchor" href="#configuration-file"></a></h3>
+
+
+<p>Besides giving every option on the command line, all of them can be put in a
+JSON or YAML file and passed as the single command-line argument
+<code>@json=conf.json</code> or <code>@yaml=conf.yaml</code>:</p>
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>Rscript foo.R <span class="sc">@</span>json<span class="ot">=</span>conf.json</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>Rscript foo.R <span class="sc">@</span>yaml<span class="ot">=</span>conf.yaml</span></code></pre><p></p></div>
+<p>The file must contain an object whose keys are the argument names. <code>-</code> or
+<code>stdin</code> instead of a file name reads it from standard input. The
+<code>jsonlite</code> and <code>yaml</code> packages are needed, respectively.</p>
+</div>
+
+<div class="section">
+<h3 id="help-and-version">help and version<a class="anchor" aria-label="anchor" href="#help-and-version"></a></h3>
+
+
+<p><code>--help</code> and <code>--version</code> are added automatically. Defining <code>help</code> or
+<code>version</code> in the specification replaces the generated one. The version
+string is taken from the <code>version</code> variable in <code>envir</code>, then from <code>VERSION</code>.</p>
+</div>
+
     </div>
 
     <div class="section level2">

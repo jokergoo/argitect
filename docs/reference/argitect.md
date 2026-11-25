@@ -110,6 +110,26 @@ optional. Logical options always default to `FALSE`.
 
 For more details, please refer to the vignette.
 
+### Configuration file
+
+Besides giving every option on the command line, all of them can be put
+in a JSON or YAML file and passed as the single command-line argument
+`@json=conf.json` or `@yaml=conf.yaml`:
+
+    Rscript foo.R @json=conf.json
+    Rscript foo.R @yaml=conf.yaml
+
+The file must contain an object whose keys are the argument names. `-`
+or `stdin` instead of a file name reads it from standard input. The
+`jsonlite` and `yaml` packages are needed, respectively.
+
+### help and version
+
+`--help` and `--version` are added automatically. Defining `help` or
+`version` in the specification replaces the generated one. The version
+string is taken from the `version` variable in `envir`, then from
+`VERSION`.
+
 ## Examples
 
 ``` r

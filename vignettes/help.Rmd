@@ -323,6 +323,41 @@ argitect(
 run_code("head-foot", "--help")
 ```
 
+## –-help and –-version
+
+`help` and `version` are two reserved logical options. The version number can be set in a variable `VERSION`.
+
+
+```{r version1, eval = FALSE}
+VERSION = "0.0.1"
+argitect(
+    "size=i", "Size."
+)
+```
+
+```
+~\> Rscript foo.R --version
+```
+
+```{r, echo = FALSE}
+run_code("version1", "--version")
+```
+
+Their help message can be self-defined.
+
+```{r version2, eval = FALSE}
+argitect(
+    "size=i", "Size.",
+    "help!", "Help!",
+    "version!", "Print version number."
+)
+```
+
+```{r, echo = FALSE}
+run_code("version2", "--help")
+```
+
+
 ## Session info
 
 ```{r}

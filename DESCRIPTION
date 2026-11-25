@@ -15,7 +15,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.0.0)
 Imports: methods, GlobalOptions (>= 0.1.0), cli, glue
-Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, jsonlite, yaml
 VignetteBuilder: knitr
 URL: https://github.com/jokergoo/argitect, https://jokergoo.github.io/argitect/
 BugReports: https://github.com/jokergoo/argitect/issues

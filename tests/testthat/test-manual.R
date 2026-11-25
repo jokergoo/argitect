@@ -296,7 +296,8 @@ test_that("argument format", {
 	expect_error(argitect("foo!", "", "foo!", "", argv_str = "-h"))
 	expect_error(argitect("bar|foo!", "", "foo!", "", argv_str = "-h"))
 
-	expect_error(argitect("help", ""))
+	# a user-defined help is allowed now
+	expect_error(capture.output(argitect("help", "", argv_str = "--help", envir = new.env())), NA)
 })
 
 test_that("improper value", {
@@ -675,18 +676,19 @@ expect_match(output, "                long long text.", fixed = TRUE)
 
 
 
-cmd = paste0("Rscript '", system.file("extdata", "main.R", package = "argitect"), "'")
+main = shQuote(system.file("extdata", "main.R", package = "argitect"))
+cmd = paste("Rscript", main)
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "Commands", fixed = TRUE)
 expect_match(output, "sub1\\s+This is the description of sub command 1")
 
-cmd = paste0("Rscript '", system.file("extdata", "main.R", package = "argitect"), "' sub1 --help")
+cmd = paste("Rscript", main, "sub1 --help")
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "--foo, -f integer", fixed = TRUE)
 
-cmd = paste0("Rscript '", system.file("extdata", "main.R", package = "argitect"), "' sub1 --foo 1")
+cmd = paste("Rscript", main, "sub1 --foo 1")
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "foo is 1", fixed = TRUE)

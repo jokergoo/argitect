@@ -85,6 +85,27 @@ function), it is used as the default value and the option becomes optional.
 Logical options always default to \code{FALSE}.
 
 For more details, please refer to the vignette.
+\subsection{Configuration file}{
+
+Besides giving every option on the command line, all of them can be put in a
+JSON or YAML file and passed as the single command-line argument
+\verb{@json=conf.json} or \verb{@yaml=conf.yaml}:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{Rscript foo.R @json=conf.json
+Rscript foo.R @yaml=conf.yaml
+}\if{html}{\out{</div>}}
+
+The file must contain an object whose keys are the argument names. \code{-} or
+\code{stdin} instead of a file name reads it from standard input. The
+\code{jsonlite} and \code{yaml} packages are needed, respectively.
+}
+
+\subsection{help and version}{
+
+\code{--help} and \code{--version} are added automatically. Defining \code{help} or
+\code{version} in the specification replaces the generated one. The version
+string is taken from the \code{version} variable in \code{envir}, then from \code{VERSION}.
+}
 }
 \examples{
 argitect(

@@ -436,6 +436,46 @@ argitect(
 
     This is the foot of the help message.
 
+## –-help and –-version
+
+`help` and `version` are two reserved logical options. The version
+number can be set in a variable `VERSION`.
+
+``` r
+
+VERSION = "0.0.1"
+argitect(
+    "size=i", "Size."
+)
+```
+
+    ~\> Rscript foo.R --version
+
+    0.0.1
+
+Their help message can be self-defined.
+
+``` r
+
+argitect(
+    "size=i", "Size.",
+    "help!", "Help!",
+    "version!", "Print version number."
+)
+```
+
+    Usage: Rscript foo.R [options]
+
+    Options:
+      --size, -s integer
+        Size. 
+      --help, -h, --no-help
+        Help!
+        [default: off] 
+      --version, -v, --no-version
+        Print version number.
+        [default: off] 
+
 ## Session info
 
 ``` r

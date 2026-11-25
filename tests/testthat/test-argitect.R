@@ -300,29 +300,29 @@ test_that("duplicated argument names or aliases are rejected", {
 })
 
 
-test_that("help and version are rejected as reserved without a warning", {
-    capture = function(expr) {
-        w = character(0)
-        r = tryCatch(withCallingHandlers(expr,
-                warning = function(c) {
-                    w <<- c(w, conditionMessage(c))
-                    invokeRestart("muffleWarning")
-                }),
-            error = function(e) conditionMessage(e))
-        list(err = r, warned = length(w) > 0)
-    }
+test_that("user-defined help and version replace the auto-generated ones", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
 
-    r = capture(argitect("help", "", envir = new.env(), argv_str = ""))
-    expect_match(r$err, "reserved")
-    expect_false(r$warned)
+    out = capture.output(argitect("number=i", "N.", "help!", "My own help.",
+        envir = new.env(), argv_str = "--help"))
+    expect_true(any(grepl("My own help", out)))
+    expect_equal(sum(grepl("My own help", out)), 1)
 
-    r = capture(argitect("version", "", envir = new.env(), argv_str = ""))
-    expect_match(r$err, "reserved")
-    expect_false(r$warned)
+    # "help" as an alias of another option is still a duplicate
+    expect_error(argitect("foo|help!", "", envir = new.env(), argv_str = ""), "Duplicated")
 
-    r = capture(argitect("foo|help!", "", envir = new.env(), argv_str = ""))
-    expect_match(r$err, "reserved")
-    expect_false(r$warned)
+    # version uses the `version` variable first, then `VERSION`
+    e = new.env(); e$version = "1.2.3"
+    out = capture.output(argitect("version!", "V.", envir = e, argv_str = "--version"))
+    expect_true(any(grepl("1.2.3", out)))
+
+    e = new.env(); e$VERSION = "9.9.9"
+    out = capture.output(argitect("version!", "V.", envir = e, argv_str = "--version"))
+    expect_true(any(grepl("9.9.9", out)))
+
+    e = new.env(); e$version = "1.2.3"; e$VERSION = "9.9.9"
+    out = capture.output(argitect("version!", "V.", envir = e, argv_str = "--version"))
+    expect_true(any(grepl("1.2.3", out)))
 })
 
 test_that("conversion errors name the argument and are not double-prefixed", {
@@ -492,4 +492,53 @@ test_that("positional sub-arguments of a hash can be given by position", {
     expect_equal(run("arg=%{ foo=i@, bar=s#{} }", "--arg foo=1,2,3 a b c"),
         list(foo = 1:3, bar = c("a", "b", "c")))
     expect_error(run("arg=%{ foo=i@, bar=s#{} }", "--arg 1 2 3 a b c"))
+})
+
+
+test_that("unknown options suggest a close match", {
+    e = new.env()
+    expect_error(argitect("number=i", "N.", envir = e, argv_str = "--nmuber 5"),
+        "Did you mean '--number'")
+
+    # no suggestion when nothing is close
+    e = new.env()
+    expect_error(argitect("number=i", "N.", envir = e, argv_str = "--zzzzzz 5"),
+        "Unknown option")
+})
+
+test_that("options can be read from a JSON or YAML config file", {
+    skip_if_not_installed("jsonlite")
+    skip_if_not_installed("yaml")
+
+    d = tempfile("argitect_cfg_")
+    dir.create(d, showWarnings = FALSE, recursive = TRUE)
+
+    spec = function(...) argitect("number=i", "N.", "verbose!", "V.", "tag=s@", "T.", ...)
+
+    json = file.path(d, "conf.json")
+    writeLines('{"number": 5, "verbose": true, "tag": ["a", "b"]}', json)
+    e = new.env()
+    spec(envir = e, argv_str = paste0("@json=", json))
+    expect_equal(e$number, 5L)
+    expect_true(e$verbose)
+    expect_equal(e$tag, c("a", "b"))
+
+    yaml_file = file.path(d, "conf.yaml")
+    writeLines(c("number: 7", "verbose: false", "tag: [x, yy, z]"), yaml_file)
+    e = new.env()
+    spec(envir = e, argv_str = paste0("@yaml=", yaml_file))
+    expect_equal(e$number, 7L)
+    expect_false(e$verbose)
+    expect_equal(e$tag, c("x", "yy", "z"))
+
+    # the config mode is a single command-line argument
+    e = new.env()
+    expect_error(spec(envir = e, argv_str = paste(paste0("@json=", json), "--verbose")),
+        "only\\s+command-line argument")
+
+    # unknown keys are reported
+    bad = file.path(d, "bad.json")
+    writeLines('{"nope": 1}', bad)
+    e = new.env()
+    expect_error(spec(envir = e, argv_str = paste0("@json=", bad)), "Unknown key")
 })

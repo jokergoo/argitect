@@ -1,8 +1,9 @@
 test_that("get script name and get script dir", {
 	file = system.file("extdata", "foo.R", package = "argitect")
-	output = readLines(pipe(paste0("Rscript ", file)))
-	expect_equal(output[1], file)
-	expect_equal(output[2], dirname(file))
+	output = readLines(pipe(paste0("Rscript ", shQuote(file))))
+	# normalizePath() uses "\\" on Windows, so compare normalized forms
+	expect_equal(normalizePath(output[1], winslash = "/"), normalizePath(file, winslash = "/"))
+	expect_equal(normalizePath(output[2], winslash = "/"), normalizePath(dirname(file), winslash = "/"))
 
 	expect_equal(get_scriptname(), NULL)
 	expect_equal(get_scriptdir(), NULL)
