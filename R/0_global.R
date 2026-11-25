@@ -171,7 +171,7 @@ get_scriptdir = function() {
     f = grep("^--file=", args, value = TRUE)
     if(length(f)) {
         f = gsub("^--file=(.*)$", "\\1", f[1])
-        return(dirname(normalizePath(f)))
+        return(normalizePath(dirname(f)))
     } else {
         return(NULL)
     }

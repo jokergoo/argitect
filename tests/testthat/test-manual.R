@@ -677,18 +677,19 @@ expect_match(output, "                long long text.", fixed = TRUE)
 
 
 main = shQuote(system.file("extdata", "main.R", package = "argitect"))
-cmd = paste("Rscript", main)
+rscript = shQuote(rscript_bin())
+cmd = paste(rscript, main)
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "Commands", fixed = TRUE)
 expect_match(output, "sub1\\s+This is the description of sub command 1")
 
-cmd = paste("Rscript", main, "sub1 --help")
+cmd = paste(rscript, main, "sub1 --help")
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "--foo, -f integer", fixed = TRUE)
 
-cmd = paste("Rscript", main, "sub1 --foo 1")
+cmd = paste(rscript, main, "sub1 --foo 1")
 output = system(cmd, intern = TRUE)
 output = paste(output, collapse = "\n")
 expect_match(output, "foo is 1", fixed = TRUE)

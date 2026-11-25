@@ -1,6 +1,9 @@
 test_that("get script name and get script dir", {
 	file = system.file("extdata", "foo.R", package = "argitect")
-	output = readLines(pipe(paste0("Rscript ", shQuote(file))))
+	# use system() rather than pipe(): pipe() does not handle quoted paths on Windows
+	output = system(paste(shQuote(rscript_bin()), shQuote(file)), intern = TRUE)
+	expect_true(length(output) >= 2)
+	if(length(output) < 2) return(invisible(NULL))
 	# normalizePath() uses "\\" on Windows, so compare normalized forms
 	expect_equal(normalizePath(output[1], winslash = "/"), normalizePath(file, winslash = "/"))
 	expect_equal(normalizePath(output[2], winslash = "/"), normalizePath(dirname(file), winslash = "/"))
