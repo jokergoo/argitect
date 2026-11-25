@@ -12,6 +12,15 @@ help messages, including one-column and two-column styles, template-based
 usage text, option grouping, default-value reporting and sub-option documentation,
 as well as sub-command dispatch.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/jokergoo/argitect}
+  \item \url{https://jokergoo.github.io/argitect/}
+  \item Report bugs at \url{https://github.com/jokergoo/argitect/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Zuguang Gu \email{guzuguang@suat-sz.edu.cn} (\href{https://orcid.org/0000-0002-7395-8709}{ORCID})
 

@@ -89,6 +89,7 @@ test_that("help head/foot and option groups are printed", {
         "    Print help message and exit.",
         "  --version",
         "    Print version information and exit.",
+        "",
         "FOOT."
     )
     expect_identical(out, expected)
@@ -373,9 +374,9 @@ test_that("type suffix shows fixed keys and count ranges", {
     expect_identical(opt_line("arg=i@{foo, bar}"),
         "  --arg, -a [foo=integer, bar=integer]")
 
-    # named positional (square brackets)
+    # named positional (square brackets, key names in "<>")
     expect_identical(opt_line("arg=i#{foo, bar}", "1 2 --help"),
-        "  <arg> [foo=integer, bar=integer]")
+        "  <arg> [<foo>=integer, <bar>=integer]")
 
     # count ranges on arrays
     expect_identical(opt_line("arg=i@{2,3}"), "  --arg, -a [integer, 2-3]")
@@ -582,7 +583,7 @@ test_that("fixed-key vectors and positionals use square brackets in the help", {
 
     out = strip_trailing(capture.output(argitect("foo=i#{a,b}", "", envir = new.env(),
         argv_str = "--help")))
-    expect_true(any(grepl("\\[a=integer, b=integer\\]", out)))
+    expect_true(any(grepl("\\[<a>=integer, <b>=integer\\]", out)))
 
     # hashes keep curly braces
     out = strip_trailing(capture.output(argitect("foo=i%{a,b}", "", envir = new.env(),
@@ -686,4 +687,18 @@ test_that("help_width can be set per call and overrides the global option", {
     out = strip_trailing(capture.output(argitect(aliases, "N.", envir = new.env(),
         argv_str = "--help", help_width = 100)))
     expect_true(any(grepl("--number, -a, .*, -n integer", out)))
+})
+
+
+test_that("there is a blank line before help_foot", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+
+    for(st in c("one-column", "two-column")) {
+        out = strip_trailing(capture.output(argitect("number=i", "N.",
+            help_foot = "FOOT", envir = new.env(), argv_str = "--help",
+            help_style = st)))
+        k = which(out == "FOOT")
+        expect_true(length(k) == 1)
+        expect_true(k > 1 && out[k - 1] == "")
+    }
 })

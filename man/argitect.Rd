@@ -11,7 +11,6 @@ argitect(
   envir = parent.frame(),
   argv_str = NULL,
   explain = FALSE,
-  template_control = list(),
   help_style = argitect_options("help_style"),
   help_width = argitect_options("help_width"),
   value_sep = argitect_options("value_sep")
@@ -19,7 +18,7 @@ argitect(
 }
 \arguments{
 \item{...}{Argument specifications. They can be given as
-\verb{(specification, description)} pairs, a two-column matrix, or a single
+specification-description pairs, or a single
 text template. See Details.}
 
 \item{help_head}{Head of the help message shown by \code{--help}.}
@@ -36,9 +35,6 @@ testing purposes.}
 \item{explain}{If \code{TRUE}, print an explanation of each argument
 specification (its format and simple examples) and return without
 parsing any command-line arguments.}
-
-\item{template_control}{A list controlling template help rendering, e.g.
-\code{list(opt_width = 21)}.}
 
 \item{help_style}{The style of the help message: \code{"one-column"} or
 \code{"two-column"}.}
@@ -70,6 +66,8 @@ scalar, \verb{#} positional, \code{@} vector, \verb{\%} hash), optionally follow
 bracketed range or sub-argument list. The \code{i} mode also accepts extended
 integer notation: \verb{0x}/\verb{0X} hexadecimal, \verb{0b}/\verb{0B} binary, \code{0}/\verb{0o}/\verb{0O}
 octal (e.g. \code{0123}), and decimal.
+
+Examples are:
 \itemize{
 \item \code{"number=i"}: a single integer scalar.
 \item \code{"name=s"}: a single character scalar.
@@ -85,12 +83,16 @@ octal (e.g. \code{0123}), and decimal.
 If a variable with the first name already exists in \code{envir} (and is not a
 function), it is used as the default value and the option becomes optional.
 Logical options always default to \code{FALSE}.
+
+For more details, please refer to the vignette.
 }
 \examples{
-e = new.env()
-argitect("count=i", "Number of items.", "verbose!", "Print messages.",
-    envir = e, argv_str = "--count 3 --verbose")
-e$count
-e$verbose
+argitect(
+    "count=i", "Number of items.", 
+    "verbose!", "Print messages.",
+    argv_str = "--count 3 --verbose"
+)
+count
+verbose
 
 }

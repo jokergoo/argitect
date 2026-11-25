@@ -296,7 +296,9 @@ parse_names = function(name_part) {
 
     for(i in seq_along(nm)) {
         if(i == 1) {
-            if(!grepl("^[A-Za-z_][A-Za-z0-9._]*$", nm[i])) {
+            # a name may start with a letter or a dot (but not a dot followed
+            # by a digit); it cannot start with "_"
+            if(!grepl("^[A-Za-z.][A-Za-z0-9._]*$", nm[i]) || grepl("^\\.[0-9]", nm[i])) {
                 stop_wrap("Argument name '", nm[i], "' should be a valid R variable name.")
             }
         } else {

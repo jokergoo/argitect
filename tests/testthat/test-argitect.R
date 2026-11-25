@@ -375,10 +375,11 @@ test_that("argitect_options is an alias of argitect_options", {
     expect_identical(argitect_options, argitect_options)
 
     on.exit(argitect_options(RESET = TRUE), add = TRUE)
+    # a single number is expanded to (total, first-column)
     argitect_options("help_width" = 100)
-    expect_equal(argitect_options("help_width"), 100)
+    expect_equal(argitect_options("help_width"), c(100, 44))
     argitect_options("help_width" = 90)
-    expect_equal(argitect_options("help_width"), 90)
+    expect_equal(argitect_options("help_width"), c(90, 40))
 })
 
 
@@ -439,4 +440,56 @@ test_that("multiple single-letter aliases are all accepted", {
     out = capture.output(argitect("number|a|b|c=i", "N.", envir = new.env(),
         argv_str = "--help"))
     expect_true(any(grepl("--number, -a, -b, -c", out)))
+})
+
+
+test_that("config has sensible defaults", {
+    expect_equal(argitect_options("config"), c("bundling", "no_ignore_case"))
+
+    # bundling is on
+    e = new.env()
+    argitect("alpha!", "A.", "beta!", "B.", envir = e, argv_str = "-ab")
+    expect_true(e$alpha)
+    expect_true(e$beta)
+
+    # matching is case-sensitive by default
+    e = new.env()
+    expect_error(argitect("foo=i", "F.", envir = e, argv_str = "--FOO 5"),
+        "Unknown option")
+})
+
+
+test_that("positional sub-arguments of a hash can be given by position", {
+    run = function(spec, argv_str) {
+        e = new.env()
+        argitect(spec, "description", argv_str = argv_str, envir = e)
+        e$arg
+    }
+
+    # scalar positional sub-arguments: names are optional, order is fixed
+    expect_equal(run("arg=%{ foo=i#, bar=s# }", "--arg 1 a"), list(foo = 1L, bar = "a"))
+    expect_error(run("arg=%{ foo=i#, bar=s# }", "--arg a 1"))
+    expect_equal(run("arg=%{ foo=i#, bar=s# }", "--arg foo=1 bar=a"), list(foo = 1L, bar = "a"))
+
+    # multi-value positional sub-arguments accept "a b c" and "a,b,c"
+    expect_equal(run("arg=%{ foo=i#, bar=s#{} }", "--arg 1 a b c"),
+        list(foo = 1L, bar = c("a", "b", "c")))
+    expect_equal(run("arg=%{ foo=i#, bar=s#{} }", "--arg 1 a,b,c"),
+        list(foo = 1L, bar = c("a", "b", "c")))
+    expect_equal(run("arg=%{ foo=i#{}, bar=s# }", "--arg 1 2 3 a"),
+        list(foo = 1:3, bar = "a"))
+    expect_equal(run("arg=%{ foo=i#{}, bar=s# }", "--arg 1,2,3 a"),
+        list(foo = 1:3, bar = "a"))
+    expect_equal(run("arg=%{ foo=i#{}, bar=s#{} }", "--arg 1 2 3 a b c"),
+        list(foo = 1:3, bar = c("a", "b", "c")))
+    expect_equal(run("arg=%{ foo=i#{}, bar=s#{} }", "--arg 1,2,3 a,b,c"),
+        list(foo = 1:3, bar = c("a", "b", "c")))
+
+    # a vector ("@") sub-argument cannot be filled positionally, so it has to
+    # be named explicitly
+    expect_equal(run("arg=%{ foo=i@, bar=s#{} }", "--arg foo=1,2,3 a,b,c"),
+        list(foo = 1:3, bar = c("a", "b", "c")))
+    expect_equal(run("arg=%{ foo=i@, bar=s#{} }", "--arg foo=1,2,3 a b c"),
+        list(foo = 1:3, bar = c("a", "b", "c")))
+    expect_error(run("arg=%{ foo=i@, bar=s#{} }", "--arg 1 2 3 a b c"))
 })

@@ -7,7 +7,7 @@
 sub_commands(..., help_head = NULL, help_foot = NULL, argv_str = NULL)
 }
 \arguments{
-\item{...}{Specification of commands. See Details.}
+\item{...}{Specification of commands.}
 
 \item{help_head}{Head of the help message.}
 
@@ -27,9 +27,6 @@ script.
 \details{
 The specification can be one of the following:
 \enumerate{
-\item A two-column matrix: \verb{(script path, description)}. The command name is
-the basename of the script path without its extension.
-\item A three-column matrix: \verb{(command, script path, description)}.
 \item A vector with length a multiple of 2: \verb{(script path, description, ...)}.
 \item A vector with length a multiple of 3:
 \verb{(command, script path, description, ...)}.
@@ -37,8 +34,7 @@ the basename of the script path without its extension.
 (default \verb{<CODE>}).
 }
 
-Commands can be grouped into sections by a separator line, e.g.
-\verb{"----", "----", "This is a section"}.
+For more details, please refer to the vignette.
 }
 \examples{
 d = tempfile("argitect_sub_")
@@ -46,12 +42,12 @@ dir.create(d)
 writeLines(c(
     'library(argitect)',
     'argitect("x=i", "X.")',
-    'cat("x =", x, "\\\\n")'
+    'cat("x =", x, "\n")'
 ), file.path(d, "cmd1.R"))
 writeLines(c(
     'library(argitect)',
     'argitect("y=s", "Y.")',
-    'cat("y =", y, "\\\\n")'
+    'cat("y =", y, "\n")'
 ), file.path(d, "cmd2.R"))
 sub_commands(
     file.path(d, "cmd1.R"), "First command",

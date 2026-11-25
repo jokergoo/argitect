@@ -34,22 +34,8 @@ format_sub_opt_entry = function(label, desc, prefix, width) {
 
 
 # expand an argument into the option string shown for a template placeholder
-template_opt_str = function(a, template_control = NULL) {
-    name = a$arg_name[1]
-    data_type = TRUE
-    if(!is.null(template_control$data_type)) {
-        if(length(template_control$data_type) == 1 && is.null(names(template_control$data_type))) {
-            data_type = template_control$data_type
-        } else {
-            data_type = template_control$data_type[name]
-            if(is.na(data_type)) data_type = TRUE
-        }
-    }
-    if(isTRUE(data_type)) {
-        gsub("\n$", "", a$help_line(prefix = "", which = "opt_line"))
-    } else {
-        a$opt_name_line()
-    }
+template_opt_line = function(a) {
+    gsub("\n$", "", a$help_line(prefix = "", which = "opt_line"))
 }
 
 
@@ -100,21 +86,6 @@ render_fixed_suffix = function(parts, open, base = "", width = Inf,
     paste(lines, collapse = "\n")
 }
 
-# compute the (possibly overridden) option width of a template entry
-template_opt_width = function(a, opt_str, template_control = NULL) {
-    w = nchar(opt_str)
-    if(!is.null(template_control$opt_width)) {
-        if(length(template_control$opt_width) == 1 && is.null(names(template_control$opt_width))) {
-            w = as.integer(template_control$opt_width)
-        } else {
-            ww = template_control$opt_width[a$arg_name[1]]
-            if(!is.na(ww)) w = as.integer(ww)
-        }
-    }
-    w
-}
-
-
 # the "--name, -n" part of a help line
 SingleArgument$methods(
     opt_name_line = function(width = Inf, prefix = "") {
@@ -160,7 +131,9 @@ SingleArgument$methods(
         if(type == "#") {
             rng = sv$arg_range
             if(is.character(rng)) {
-                parts = vapply(rng, function(k) paste0(k, "=", mode_label(mode)), character(1))
+                # positional keys are given by position, so wrap the key names
+                # in "<>" to show that they are not named on the command line
+                parts = vapply(rng, function(k) paste0("<", k, ">=", mode_label(mode)), character(1))
                 return(render_fixed_suffix(parts, isTRUE(attr(rng, "open")), base, width, "[", "]"))
             }
             if(is.numeric(rng) && (rng[1] == 1 && rng[2] == 1)) {
@@ -383,7 +356,7 @@ SingleArgument$methods(
 # ============================================================
 
 print_help_msg = function(arguments, file = stdout(), script_name = NULL, head = NULL, foot = NULL,
-    template = NULL, template_control = NULL, style = c("one-column", "two-column"),
+    template = NULL, style = c("one-column", "two-column"),
     opt_group = NULL, opt_group_desc = NULL) {
 
     style = match.arg(style)
@@ -498,6 +471,8 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
         }
 
         if(!is.null(foot)) {
+            # the two-column style already ends a group with a blank line
+            if(style == "one-column") cat("\n", file = file)
             cat(format_text(foot, prefix = NULL), file = file)
             cat("\n", file = file)
         }
@@ -542,8 +517,8 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
             k = which(vapply(arguments, function(a) a$spec == code, logical(1)))
             if(length(k) == 0) next
             line_arg[i] = k[1]
-            line_opt[i] = template_opt_str(arguments[[k[1]]], template_control)
-            line_width[i] = template_opt_width(arguments[[k[1]]], line_opt[i], template_control)
+            line_opt[i] = template_opt_line(arguments[[k[1]]])
+            line_width[i] = nchar(line_opt[i])
         }
 
         # group lines into sections separated by blank lines
@@ -566,8 +541,7 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
             if(!is.na(line_blank[i])) {
                 k = which(vapply(arguments, function(a) a$arg_name[1] == line_blank[i], logical(1)))
                 own = if(length(k)) {
-                    template_opt_width(arguments[[k[1]]],
-                        template_opt_str(arguments[[k[1]]], template_control), template_control)
+                    nchar(template_opt_line(arguments[[k[1]]]))
                 } else 0L
                 opt_width = max(section_w, own)
 
@@ -609,9 +583,8 @@ print_help_msg = function(arguments, file = stdout(), script_name = NULL, head =
                 if(length(k) == 0) next
                 a = arguments[[k[1]]]
 
-                opt_str = template_opt_str(a, template_control)
-                opt_width = max(section_w,
-                    template_opt_width(a, opt_str, template_control))
+                opt_str = template_opt_line(a)
+                opt_width = max(section_w, nchar(opt_str))
                 prefix = strrep(" ", opt_width + 6)
 
                 desc = gsub(lt$template[j], "", lines[[i]], fixed = TRUE)

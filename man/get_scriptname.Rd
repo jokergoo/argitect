@@ -2,19 +2,31 @@
 % Please edit documentation in R/0_global.R
 \name{get_scriptname}
 \alias{get_scriptname}
-\title{File name of the current script}
+\alias{get_scriptdir}
+\title{File or directory name of the current script}
 \usage{
 get_scriptname()
+
+get_scriptdir()
 }
 \value{
 A character string, or \code{NULL} if the R script is not run from the
 command line.
 }
 \description{
-Returns the file name of the currently running R script.
+Returns the file or directory name of the currently running R script.
 }
 \examples{
 # NULL when the script is not run from the command line
 get_scriptname()
+get_scriptdir()
+
+f = tempfile(fileext = ".R")
+writeLines(c(
+    'library(argitect)',
+    'cat(get_scriptname(), "\n")',
+    'cat(get_scriptdir(),  "\n")'
+), f)
+system(paste("Rscript", f), intern = TRUE)
 
 }

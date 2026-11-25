@@ -1,12 +1,12 @@
 # argitect
 
 A pure-R command-line argument parser that reimplements the functionality of
-the Perl module [`Getopt::Long`](https://perldoc.pl/Getopt::Long) without any
-external dependency, and additionally supports **positional arguments**. It
+the Perl module [**Getopt::Long**](https://perldoc.pl/Getopt::Long) without any
+external dependency, and additionally supports positional arguments. It
 also provides rich, customizable help messages. This package is a replacement
 of the [**GetoptLong**](https://cran.r-project.org/package=GetoptLong) package.
 
-argitect is a phonetic approximation of "arkitect".
+"argitect" is a phonetic approximation of "arkitect".
 
 ## Install
 
@@ -32,14 +32,14 @@ Run from the command line:
 
 ```
 Rscript foo.R --number 4 --cutoff 0.01 --verbose data.txt
-Rscript foo.R --n4 -c=0.01 -v data.txt
+Rscript foo.R -n4 -c=0.01 --no-verbose data.txt
 ```
 
 Parsed values are exported as R variables in the calling environment.
 
 ## Specification language
 
-Each argument is `name[|alias...]=spec`. The value part `spec` is an optional
+Each option is in the format `name[|alias...]=spec`. The value part `spec` is an optional
 **mode** and an optional **type**, optionally followed by a bracketed range or
 sub-argument list.
 
@@ -50,9 +50,9 @@ sub-argument list.
 |---------------|-------------------------------------------|
 | `number=i`    | single integer scalar                     |
 | `name=s`      | single character scalar                   |
-| `length|size=i` | integer scalar with two names            |
+| `length|size=i` | integer scalar with two option names            |
 | `tag=i@`      | integer vector                            |
-| `tag=i@{2,4}`  | integer vector with 2–4 elements          |
+| `tag=i@{2,4}`  | integer vector with 2-4 elements          |
 | `param=s%`    | name=value pairs with character values    |
 | `input=s#`    | one positional argument                   |
 | `files=s#{}`  | one or more positional arguments          |

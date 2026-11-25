@@ -9,7 +9,7 @@
 #' argument. The remaining command-line arguments are passed to the selected
 #' script.
 #'
-#' @param ... Specification of commands. See Details.
+#' @param ... Specification of commands.
 #' @param help_head Head of the help message.
 #' @param help_foot Foot of the help message.
 #' @param argv_str A string containing command-line arguments. Only for
@@ -18,17 +18,13 @@
 #' @details
 #' The specification can be one of the following:
 #'
-#' 1. A two-column matrix: `(script path, description)`. The command name is
-#'    the basename of the script path without its extension.
-#' 2. A three-column matrix: `(command, script path, description)`.
-#' 3. A vector with length a multiple of 2: `(script path, description, ...)`.
-#' 4. A vector with length a multiple of 3:
+#' 1. A vector with length a multiple of 2: `(script path, description, ...)`.
+#' 2. A vector with length a multiple of 3:
 #'    `(command, script path, description, ...)`.
-#' 5. A single string template where commands are marked by the template tag
+#' 3. A single string template where commands are marked by the template tag
 #'    (default `<CODE>`).
-#'
-#' Commands can be grouped into sections by a separator line, e.g.
-#' `"----", "----", "This is a section"`.
+#' 
+#' For more details, please refer to the vignette.
 #'
 #' @return Invisible `NULL`.
 #'
@@ -38,12 +34,12 @@
 #' writeLines(c(
 #'     'library(argitect)',
 #'     'argitect("x=i", "X.")',
-#'     'cat("x =", x, "\\n")'
+#'     'cat("x =", x, "\n")'
 #' ), file.path(d, "cmd1.R"))
 #' writeLines(c(
 #'     'library(argitect)',
 #'     'argitect("y=s", "Y.")',
-#'     'cat("y =", y, "\\n")'
+#'     'cat("y =", y, "\n")'
 #' ), file.path(d, "cmd2.R"))
 #' sub_commands(
 #'     file.path(d, "cmd1.R"), "First command",
@@ -150,6 +146,17 @@ split_cmd_script = function(code) {
     c(gsub("\\.[^.]*$", "", basename(code)), code)
 }
 
+# the title of a section marker. A section marker can be written either as
+# "(----, ----, title)" or as "(----, title, ----)", so the title is the first
+# non-separator value among the second and third columns.
+section_title = function(row) {
+    for(k in c(2, 3)) {
+        v = row[k]
+        if(nzchar(v) && !grepl("^[-=+#%]*$", v)) return(v)
+    }
+    ""
+}
+
 # error about script paths in the specification that do not exist
 check_missing_scripts = function(spec) {
     l_group = grepl("^[-=+#%]*$", spec[, 1])
@@ -211,10 +218,14 @@ parse_sub_commands_spec = function(spec_list) {
                 script = spec[seq_along(spec) %% 3 == 2],
                 description = spec[seq_along(spec) %% 3 == 0])
 
-            # a section marker in the triple form is "(----, ----, title)", i.e.
-            # two consecutive separator elements; this is a strong structural hint
+            # a section marker in the triple form is either "(----, ----, title)"
+            # (two consecutive separators) or "(----, title, ----)" (separators
+            # two slots apart); both are strong structural hints
             l_sep = grepl("^[-=+#%]*$", spec)
-            has_double_sep = length(spec) > 1 && any(l_sep[-length(spec)] & l_sep[-1])
+            n_spec = length(spec)
+            has_double_sep = n_spec > 1 && any(l_sep[-n_spec] & l_sep[-1])
+            has_wrapped_sep = n_spec >= 3 &&
+                any(l_sep[1:(n_spec - 2)] & !l_sep[2:(n_spec - 1)] & l_sep[3:n_spec])
 
             # score each layout: script paths should look like R scripts and
             # exist; sub-command names are short alphanumeric words (a real
@@ -233,7 +244,7 @@ parse_sub_commands_spec = function(spec_list) {
 
             score2 = score_layout(spec2)
             score3 = score_layout(spec3)
-            if(has_double_sep) score3 = score3 + 2
+            if(has_double_sep || has_wrapped_sep) score3 = score3 + 2
 
             if(score3 > score2) {
                 spec = spec3
@@ -279,7 +290,7 @@ parse_sub_commands_spec = function(spec_list) {
             if(l_group[i]) {
                 i_group = i_group + 1
                 opt_group[[i_group]] = numeric(0)
-                opt_group_desc = c(opt_group_desc, spec[i, 3])
+                opt_group_desc = c(opt_group_desc, section_title(spec[i, ]))
             } else {
                 opt_group[[i_group]] = c(opt_group[[i_group]], i)
             }

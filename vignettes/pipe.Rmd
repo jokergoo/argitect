@@ -59,7 +59,7 @@ cat(system(paste0("echo hello | Rscript '", f, "' --input -"), intern = TRUE), s
 ```
 
 `input` can also be set as a positional argument, then no argument name is
-needed to specify on the command-line.
+needed to specify in the command-line.
 
 ```r
 library(argitect)
@@ -74,18 +74,25 @@ if(input %in% c("-", "stdin")) {
 }
 ```
 
+`main.R` is the script we used in vignette [Dispatching to sub-commands](sub_commands.html).
+
 ```
 ~\> cat main.R | Rscript pipe.R -
 ~\> cat main.R | Rscript pipe.R stdin
 ```
-
-`main.R` is the script we used in vignette [Dispatching to sub-commands](sub_commands.html).
 
 ```{r, echo = FALSE}
 f = system.file("extdata", "pipe2.R", package = "argitect")
 cat(system(paste0("cat main.R | Rscript '", f, "' stdin"), intern = TRUE), sep = "\n")
 ```
 
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
 
 <script>
 var elements = document.getElementsByTagName("pre");

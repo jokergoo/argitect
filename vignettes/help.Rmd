@@ -40,10 +40,10 @@ run_code = function(code_block, argv_str) {
 
 ------------------------------------------------------------------------
 
-## Automatically generated help
+## Automatically generat help message
 
 The help message is automatically generated according to the argument specifications.
-The following code shows the help message from scalar options.
+The following code shows the help message from scalar arguments.
 
 ```{r default, eval = FALSE}
 argitect(
@@ -54,19 +54,19 @@ argitect(
 )
 ```
 
-For each option, it prints the full option name (as well as the alias names if they are
+For each argument, it prints the full argumnet name (as well as the alias names if they are
 provided), the data mode, the flag letter (if the first letter is unique).
 Positional argument name is marked by `<>` which means the name is not
-necessary to specify. Positional arguments are explicitely added to the "Usage" if it is the first
+necessary to specify. Positional argument is explicitely added to "Usage" if it is the first
 or the last option specified in `argitect()`.
 
-Two additional options `help` and `verbose` are inserted to the end.
+Two additional arguments `help` and `verbose` are inserted to the end.
 
 ```{r, echo = FALSE}
 run_code("default", "--help")
 ```
 
-For the array or hash options, the data mode is adjusted accordingly.
+For the vector or hash arguments, the data mode text is adjusted accordingly.
 
 ```{r default_array1, eval = FALSE}
 argitect(
@@ -80,7 +80,7 @@ argitect(
 run_code("default_array1", "--help")
 ```
 
-When there are constraints on the array options, the range is added to the data mode part.
+When there are constraints on the vector arguments, the range is added to the data mode text.
 
 ```{r default_array2, eval = FALSE}
 argitect(
@@ -114,7 +114,8 @@ run_code("default_array3", "--help")
 For `%` with pre-defined names, see [Documenting sub-arguments](#Documenting_sub-arguments) section.
 
 
-If default values for options are provided, they are also added to the help message.
+If default values for some arguments are already provided, they are also added
+to the help message.
 
 ```{r default2, eval = FALSE}
 number = 2L
@@ -136,7 +137,7 @@ run_code("default2", "--help")
 ## One-column and two-column styles
 
 The default style is one-column. `help_style` can be set to `two-column` so
-that in the two-column layout, option names are in the left column and
+that in the two-column layout, argument names are in the left column and
 descriptions are in the second column.
 
 ```{r two-column, eval = FALSE}
@@ -158,7 +159,7 @@ The style can also be set globally:
 argitect_options("help_style" = "two-column")
 ```
 
-The option name column can be controlled by adding a second value to
+The argument name column can be controlled by adding a second value to
 `help_width`, which controls the width of the first column in the two-column style.
 
 ```{r two-column2, eval = FALSE}
@@ -177,11 +178,11 @@ run_code("two-column2", "--help")
 
 ## Sections
 
-Options can be grouped. A separator line (a name consisting only of `-`, `=`,
+Arguments can be grouped. A separator line (a name consisting only of `-`, `=`,
 `+`, `#` or `%`) starts a new section. Note `help` and `version` will be
-added to the last section. If you only want to `help` and `version` as the
+added to the last section. If you only want `help` and `version` in the
 last section, then simply create an section with the separator line but with
-no other options.
+no other argument.
 
 ```{r grouping, eval = FALSE}
 argitect(
@@ -208,8 +209,8 @@ extra specification in the form `parent$sub`:
 ```{r sub-argument, eval = FALSE}
 argitect(
     "arg=i%{foo, bar}", "This is a hash option.",
-    "arg$foo", "The foo part.",
-    "arg$bar", "The bar part."
+    "arg$foo", "The foo part.",  # only for documenting
+    "arg$bar", "The bar part."   # only for documenting
 )
 ```
 
@@ -217,7 +218,7 @@ argitect(
 run_code("sub-argument", "--help")
 ```
 
-If sub-argument is an array, the corresponding mode description is adjusted.
+If sub-argument is a vector, the corresponding mode description is adjusted.
 
 ```{r sub-argument2, eval = FALSE}
 argitect(
@@ -280,14 +281,15 @@ Questions, please contact {{ col_magenta(style_underline(style_italic('your.name
 ")
 ```
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, out.width = "70%"}
 knitr::include_graphics("output.png")
 ```
 
-The width of the option column is computed per section, so options that
+The width of the argument column is computed per section, so arguments that
 are not separated by a blank line are aligned together. 
 
-If enough space is preserved before the second line of the text block, the text is automatically aligned.
+If enough space is preserved before the second line of the description text
+block, the text is automatically aligned.
 
 ```{r placeholder2, eval = FALSE}
 argitect("
@@ -303,9 +305,9 @@ run_code("placeholder2", "--help")
 ```
 
 
-## Head, foot and width
+## Head and foot
 
-`help_head` and `help_foot` are printed before and after the option list,
+`help_head` and `help_foot` are printed before and after the argument list,
 in the template as well as in the generated layout.
 
 

@@ -39,14 +39,13 @@ option list (when setting).
 \description{
 Get or set global options used by \code{\link[=argitect]{argitect()}}. This function is backed by
 \code{\link[GlobalOptions:setGlobalOptions]{GlobalOptions::setGlobalOptions()}}, so options can be read and written with
-\code{argitect_options("name")}, \code{argitect_options("name" = value)},
-\code{argitect_options(name = value)} or \code{argitect_options$name}.
+\code{argitect_options("name")}, \code{argitect_options(name = value)} or \code{argitect_options$name}.
 }
 \details{
 Supported options:
 \itemize{
-\item \code{config} A character vector of parser configuration flags. The following
-values are recognized:
+\item \code{config} A character vector of parser configuration flags (default
+\code{c("bundling", "no_ignore_case")}). The following values are recognized:
 \itemize{
 \item \code{"bundling"}: allow single-letter flags to be combined, so that
 \code{-abc} is the same as \code{-a -b -c} (this is the default behavior).
@@ -75,13 +74,14 @@ automatically detects the separator among \code{","}, \code{";"}, \code{":"}, \c
 \code{"/"} by picking the one that satisfies the type and count constraints.
 }
 
-\code{argitect_options(...)} should be put before calling \code{\link[=argitect]{argitect()}}.
+\code{argitect_options(...)} should be put before calling \code{\link[=argitect]{argitect()}} or \code{\link[=sub_commands]{sub_commands()}}.
 }
 \examples{
 argitect_options("help_width")
 old = argitect_options("help_width")
 argitect_options("help_width" = 100)
 argitect_options("help_width")
-argitect_options("help_width" = old)
+argitect_options(RESET = TRUE)
+argitect_options
 
 }

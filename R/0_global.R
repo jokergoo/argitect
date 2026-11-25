@@ -13,8 +13,7 @@
 #'
 #' Get or set global options used by [`argitect()`]. This function is backed by
 #' [`GlobalOptions::setGlobalOptions()`], so options can be read and written with
-#' `argitect_options("name")`, `argitect_options("name" = value)`,
-#' `argitect_options(name = value)` or `argitect_options$name`.
+#' `argitect_options("name")`, `argitect_options(name = value)` or `argitect_options$name`.
 #'
 #' @param ... Named options to set, or a single option name to get.
 #' @param RESET Whether to reset all options to their default values.
@@ -25,8 +24,8 @@
 #' @details
 #' Supported options:
 #'
-#' - `config` A character vector of parser configuration flags. The following
-#'   values are recognized:
+#' - `config` A character vector of parser configuration flags (default
+#'   `c("bundling", "no_ignore_case")`). The following values are recognized:
 #'     - `"bundling"`: allow single-letter flags to be combined, so that
 #'       `-abc` is the same as `-a -b -c` (this is the default behavior).
 #'     - `"no_bundling"`: disable bundling; `-abc` is then treated as a single
@@ -52,7 +51,7 @@
 #'   automatically detects the separator among `","`, `";"`, `":"`, `"|"` and
 #'   `"/"` by picking the one that satisfies the type and count constraints.
 #'
-#' `argitect_options(...)` should be put before calling [`argitect()`].
+#' `argitect_options(...)` should be put before calling [`argitect()`] or [`sub_commands()`].
 #'
 #' @return The current option value (when getting) or, invisibly, the full
 #'   option list (when setting).
@@ -62,11 +61,12 @@
 #' old = argitect_options("help_width")
 #' argitect_options("help_width" = 100)
 #' argitect_options("help_width")
-#' argitect_options("help_width" = old)
+#' argitect_options(RESET = TRUE)
+#' argitect_options
 #'
 #' @export
 argitect_options = setGlobalOptions(
-    config = list(.value = NULL,
+    config = list(.value = c("bundling", "no_ignore_case"),
                   .class = "character"),
     template_tag = list(.value = "<CODE>",
                         .length = 1,
@@ -91,7 +91,16 @@ argitect_options = setGlobalOptions(
                       },
                       .validate = function(x) x %in% c("one-column", "two-column"),
                       .failed_msg = "help_style should be one of 'one-column' and 'two-column'"),
-    "help_width" = c(90, 40),
+    "help_width" = list(.value = c(90, 40),
+                        .filter = function(x) {
+                            if(length(x) == 1) {
+                                x = c(x, round(x*4/9))
+                            } else if(length(x) > 2) {
+                                x = x[1:2]
+                            }
+                            x
+                        },
+                        .class = "numeric"),
     value_sep = list(.value = "auto",
                      .length = 1,
                      .class = "character"),
@@ -114,9 +123,9 @@ argitect.options = argitect_options
 # Script-name helpers
 # ============================================================
 
-#' File name of the current script
+#' File or directory name of the current script
 #'
-#' Returns the file name of the currently running R script.
+#' Returns the file or directory name of the currently running R script.
 #'
 #' @return A character string, or `NULL` if the R script is not run from the
 #'   command line.
@@ -124,8 +133,18 @@ argitect.options = argitect_options
 #' @examples
 #' # NULL when the script is not run from the command line
 #' get_scriptname()
+#' get_scriptdir()
+#' 
+#' f = tempfile(fileext = ".R")
+#' writeLines(c(
+#'     'library(argitect)',
+#'     'cat(get_scriptname(), "\n")',
+#'     'cat(get_scriptdir(),  "\n")'
+#' ), f)
+#' system(paste("Rscript", f), intern = TRUE)
 #'
 #' @export
+#' @rdname get_scriptname
 get_scriptname = function() {
     args = commandArgs()
 
@@ -144,16 +163,7 @@ get_scriptname = function() {
     }
 }
 
-#' Directory of the current script
-#'
-#' Returns the directory of the currently running R script.
-#'
-#' @return A character string, or `NULL` if the R script is not run from the
-#'   command line.
-#'
-#' @examples
-#' get_scriptdir()
-#'
+#' @rdname get_scriptname
 #' @export
 get_scriptdir = function() {
     args = commandArgs()

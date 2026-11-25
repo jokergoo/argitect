@@ -555,3 +555,18 @@ test_that("hash sub-arguments only accept count ranges, not fixed key sets", {
     a = argitect:::SingleArgument("foo=i@{a,b}", "F.")
     expect_equal(a$spec_value$arg_range, c("a", "b"))
 })
+
+
+test_that("argument names may start with a dot but not an underscore", {
+    expect_silent(argitect:::SingleArgument(".foo=i", "F."))
+    expect_silent(argitect:::SingleArgument("foo.bar=i", "F."))
+    expect_silent(argitect:::SingleArgument("..foo=i", "F."))
+
+    expect_error(argitect:::SingleArgument("_foo=i", "F."), "valid R variable name")
+    expect_error(argitect:::SingleArgument(".1foo=i", "F."), "valid R variable name")
+
+    # and it is parsed from the command line
+    e = new.env()
+    argitect(".foo=i", "F.", envir = e, argv_str = "--.foo 3")
+    expect_equal(e$.foo, 3L)
+})

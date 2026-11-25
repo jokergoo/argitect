@@ -331,3 +331,39 @@ test_that("sub_commands handles '=' in script paths", {
         "  <two=", file.path(d, "cmd2.R"), "> Second cmd.\n"), argv_str = "one --x 7")))
     expect_true(any(grepl("CMD1 x=7", out, fixed = TRUE)))
 })
+
+
+test_that("section titles can be in the second or third position", {
+    old = options(cli.num_colors = 1); on.exit(options(old))
+    strip = function(x) sub("[ \t]+$", "", x)
+
+    d = tempfile("argitect_sub_sec_")
+    make_sub_scripts(d)
+
+    # title in the third position: (----, ----, title)
+    spec3 = list(
+        "----", "----", "Section one",
+        "cmd1", file.path(d, "cmd1.R"), "First cmd.",
+        "----", "----", "Section two",
+        "cmd2", file.path(d, "cmd2.R"), "Second cmd.")
+    out = strip(capture.output(do.call(sub_commands, c(spec3, list(argv_str = "")))))
+    expect_true(any(out == "Section one"))
+    expect_true(any(out == "Section two"))
+    expect_false(any(out == "cmd1"))
+
+    # title in the second position: (----, title, ----)
+    spec2 = list(
+        "----", "Section one", "----",
+        "cmd1", file.path(d, "cmd1.R"), "First cmd.",
+        "----", "Section two", "----",
+        "cmd2", file.path(d, "cmd2.R"), "Second cmd.")
+    out = strip(capture.output(do.call(sub_commands, c(spec2, list(argv_str = "")))))
+    expect_true(any(out == "Section one"))
+    expect_true(any(out == "Section two"))
+    expect_false(any(out == "cmd1"))
+
+    # both forms give the same output
+    expect_identical(
+        strip(capture.output(do.call(sub_commands, c(spec3, list(argv_str = ""))))),
+        strip(capture.output(do.call(sub_commands, c(spec2, list(argv_str = ""))))))
+})

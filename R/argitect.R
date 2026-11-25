@@ -10,7 +10,7 @@
 #' additionally supports positional arguments.
 #'
 #' @param ... Argument specifications. They can be given as
-#'   `(specification, description)` pairs, a two-column matrix, or a single
+#'   specification-description pairs, or a single
 #'   text template. See Details.
 #' @param help_head Head of the help message shown by `--help`.
 #' @param help_foot Foot of the help message shown by `--help`.
@@ -19,16 +19,14 @@
 #'   environment.
 #' @param argv_str A string containing command-line arguments. Only for
 #'   testing purposes.
-#' @param template_control A list controlling template help rendering, e.g.
-#'   `list(opt_width = 21)`.
+#' @param explain If `TRUE`, print an explanation of each argument
+#'   specification (its format and simple examples) and return without
+#'   parsing any command-line arguments.
 #' @param help_style The style of the help message: `"one-column"` or
 #'   `"two-column"`.
 #' @param help_width The width of the help message. A vector of one or two
 #'   numbers; the second number is only used by the two-column style. Defaults
 #'   to `argitect_options("help_width")`.
-#' @param explain If `TRUE`, print an explanation of each argument
-#'   specification (its format and simple examples) and return without
-#'   parsing any command-line arguments.
 #' @param value_sep The separator used to split multiple values inside a
 #'   single `name=value` pair for a vector sub-argument. The default `"auto"`
 #'   detects the separator among `","`, `";"`, `":"`, `"|"` and `"/"` by
@@ -42,6 +40,8 @@
 #' bracketed range or sub-argument list. The `i` mode also accepts extended
 #' integer notation: `0x`/`0X` hexadecimal, `0b`/`0B` binary, `0`/`0o`/`0O`
 #' octal (e.g. `0123`), and decimal.
+#' 
+#' Examples are:
 #'
 #' - `"number=i"`: a single integer scalar.
 #' - `"name=s"`: a single character scalar.
@@ -56,23 +56,27 @@
 #' If a variable with the first name already exists in `envir` (and is not a
 #' function), it is used as the default value and the option becomes optional.
 #' Logical options always default to `FALSE`.
+#' 
+#' For more details, please refer to the vignette.
 #'
 #' @return Invisibly, a list of the parsed argument objects. Parsed values are
 #'   also exported to `envir` as variables named after the first specification
 #'   name.
 #'
 #' @examples
-#' e = new.env()
-#' argitect("count=i", "Number of items.", "verbose!", "Print messages.",
-#'     envir = e, argv_str = "--count 3 --verbose")
-#' e$count
-#' e$verbose
+#' argitect(
+#'     "count=i", "Number of items.", 
+#'     "verbose!", "Print messages.",
+#'     argv_str = "--count 3 --verbose"
+#' )
+#' count
+#' verbose
 #'
 #' @export
-argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.frame(),
-    argv_str = NULL, explain = FALSE, template_control = list(), 
+argitect = function(..., help_head = NULL, help_foot = NULL, 
+    envir = parent.frame(), argv_str = NULL, explain = FALSE,
     help_style = argitect_options("help_style"),
-    help_width = argitect_options("help_width"), 
+    help_width = argitect_options("help_width"),
     value_sep = argitect_options("value_sep")) {
 
     if(is.list(envir)) envir = as.environment(envir)
@@ -198,7 +202,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
         if(IS_UNDER_COMMAND_LINE && is.null(argitect_options("__script_name__"))) {
             cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
             print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
-                template = spec_info$template, template_control = template_control,
+                template = spec_info$template,
                 style = help_style, opt_group = spec_info$opt_group,
                 opt_group_desc = spec_info$opt_group_desc)
             q(save = "no", status = 127)
@@ -210,7 +214,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
     # --help
     if(isTRUE(arguments$help$value)) {
         print_help_msg(arguments, file = stdout(), head = help_head, foot = help_foot,
-            template = spec_info$template, template_control = template_control,
+            template = spec_info$template,
             style = help_style, opt_group = spec_info$opt_group,
             opt_group_desc = spec_info$opt_group_desc)
         if(!is.null(argitect_options("__script_name__"))) {
@@ -247,7 +251,7 @@ argitect = function(..., help_head = NULL, help_foot = NULL, envir = parent.fram
         if(IS_UNDER_COMMAND_LINE) {
             cat(bold(red(paste0("Error: ", err, "\n"))), file = stderr())
             print_help_msg(arguments, file = stderr(), head = help_head, foot = help_foot,
-                template = spec_info$template, template_control = template_control,
+                template = spec_info$template,
                 style = help_style, opt_group = spec_info$opt_group,
                 opt_group_desc = spec_info$opt_group_desc)
             q(save = "no", status = 127)
@@ -759,6 +763,15 @@ assign_hash = function(a, vals, value_sep = ",") {
         if(length(pos_idx) == 0) {
             stop_wrap("Option '", a$arg_name[1], "' expects name=value pairs.")
         }
+        # a multi-value positional sub-argument may be given either as
+        # separate tokens ("a b c") or as one comma-separated token ("a,b,c")
+        split_bare = function(x, m, rng) {
+            sep = value_sep
+            if(identical(sep, "auto")) sep = detect_value_sep(x, m, rng)
+            if(is.null(sep)) return(x)
+            strsplit(x, sep, fixed = TRUE)[[1]]
+        }
+
         k = 1L
         n_pos = length(pos_idx)
         for(j in seq_along(pos_idx)) {
@@ -772,14 +785,20 @@ assign_hash = function(a, vals, value_sep = ",") {
                 cur[[sub$arg_name[1]]] = convert_value(bare[k], m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
                 k = k + 1L
             } else if(last) {
-                cur[[sub$arg_name[1]]] = convert_value(bare[k:length(bare)], m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
-                k = length(bare) + 1L
+                taken = character(0)
+                while(k <= length(bare)) {
+                    taken = c(taken, split_bare(bare[k], m, rng))
+                    k = k + 1L
+                }
+                cur[[sub$arg_name[1]]] = convert_value(taken, m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
             } else {
                 # variable positional, not last: greedily take values matching the type
                 mx = if(is.numeric(rng)) rng[2] else MAX_NV
                 taken = character(0)
-                while(k <= length(bare) && length(taken) < mx && matches_type(bare[k], m)) {
-                    taken = c(taken, bare[k])
+                while(k <= length(bare) && length(taken) < mx) {
+                    cand = split_bare(bare[k], m, rng)
+                    if(!all(vapply(cand, function(z) matches_type(z, m), logical(1)))) break
+                    taken = c(taken, cand)
                     k = k + 1L
                 }
                 cur[[sub$arg_name[1]]] = convert_value(taken, m, name = paste0(a$arg_name[1], "$", sub$arg_name[1]))
